@@ -254,5 +254,5 @@ CREATE TRIGGER update_profiles_updated_at BEFORE UPDATE ON profiles FOR EACH ROW
 
 -- Insert initial admin user (replace with your email)
 INSERT INTO allowed_users (email, is_admin) 
-VALUES ('gabrielriosemail@gmail.com.com', true)
+VALUES ('gabrielriosemail@gmail.com', true)
 ON CONFLICT (email) DO NOTHING;
