@@ -37,11 +37,6 @@ export function Layout({
     await signOut()
   }
 
-  const handleCreateNew = () => {
-    // This would typically open a modal to create new items
-    console.log('Create new item')
-  }
-
   const handleSearchResultSelect = (result: SearchResult) => {
     setSearchQuery('')
     setShowSearchResults(false)
@@ -113,7 +108,6 @@ export function Layout({
         <ViewSwitcher
           currentView={currentView}
           onViewChange={onViewChange}
-          onCreateNew={handleCreateNew}
         />
       )}
     </div>

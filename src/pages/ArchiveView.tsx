@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { ArchiveRestore, Trash2, Archive as ArchiveIcon } from 'lucide-react'
-import type { Board, List, Card } from '../types'
+import type { Board } from '../types'
 import { Button } from '../components/ui/Button'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 

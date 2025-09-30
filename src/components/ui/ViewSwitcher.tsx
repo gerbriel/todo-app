@@ -4,10 +4,9 @@ import { LayoutDashboard, Calendar, MoreHorizontal, Archive } from 'lucide-react
 interface ViewSwitcherProps {
   currentView: 'dashboard' | 'calendar' | 'archive'
   onViewChange: (view: 'dashboard' | 'calendar' | 'archive') => void
-  onCreateNew?: () => void
 }
 
-export function ViewSwitcher({ currentView, onViewChange, onCreateNew }: ViewSwitcherProps) {
+export function ViewSwitcher({ currentView, onViewChange }: ViewSwitcherProps) {
   const [isExpanded, setIsExpanded] = useState(false)
 
   const views = [
