@@ -56,7 +56,6 @@ function SpanningCard({ card, startDate, endDate, totalDays, segmentStart, segme
   }
 
   const handleResizeStart = (e: React.MouseEvent, direction: 'start' | 'end') => {
-    console.log('Resize start:', direction, 'for card:', card.title)
     e.stopPropagation()
     e.preventDefault()
     setResizing(direction)
@@ -81,7 +80,6 @@ function SpanningCard({ card, startDate, endDate, totalDays, segmentStart, segme
         const dateString = calendarCell.getAttribute('data-calendar-date')
         if (dateString) {
           const targetDate = new Date(dateString)
-          console.log('Resizing to date:', targetDate.toDateString())
           onResize(card.id, resizing, targetDate)
         }
       }
@@ -373,7 +371,6 @@ export function CalendarView({ cards = [], onUpdateCardDates, onEditCard }: Cale
   const maxLanesPerRow = getMaxLanesPerRow()
 
   const handleCardResize = (cardId: string, direction: 'start' | 'end', newDate: Date) => {
-    console.log('Handle card resize:', cardId, direction, newDate.toDateString())
     if (!onUpdateCardDates) return
 
     const card = cards.find(c => c.id === cardId)
