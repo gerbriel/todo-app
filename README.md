@@ -79,6 +79,50 @@ A powerful, feature-rich todo and project management application built with Reac
    npm run dev
    ```
 
+## 🚀 **Deployment to GitHub Pages**
+
+This app is configured for automatic deployment to GitHub Pages:
+
+### **Automatic Deployment**
+- Push to `main` branch triggers automatic deployment via GitHub Actions
+- App will be available at: `https://yourusername.github.io/todo-app/`
+
+### **Manual Deployment**
+```bash
+npm run build
+npm run deploy
+```
+
+### **Environment Variables for Production**
+In your GitHub repository settings, add these secrets:
+- `VITE_SUPABASE_URL`: Your Supabase project URL
+- `VITE_SUPABASE_ANON_KEY`: Your Supabase anonymous key
+
+### **Supabase Configuration for GitHub Pages**
+Add your GitHub Pages URL to Supabase Auth settings:
+- Go to Authentication → Settings → Site URL
+- Add: `https://yourusername.github.io/todo-app/`
+
+### **Set Up Admin User**
+1. Update the SQL schema with your email:
+   ```sql
+   -- Replace 'gabrielriosemail@gmail.com' with your actual email
+   INSERT INTO allowed_users (email, is_admin) 
+   VALUES ('gabrielriosemail@gmail.com', true)
+   ON CONFLICT (email) DO NOTHING;
+   ```
+2. Run this in your Supabase SQL editor
+3. Sign up with your email to become the admin
+
+### **User Management**
+- Only approved users can access the app
+- Admins can:
+  - Add new users to the whitelist
+  - Remove users from the whitelist
+  - Grant/revoke admin privileges
+  - Approve/disapprove user registrations
+- Users not on the whitelist will see a "pending approval" screen
+
 ## 📅 **Calendar Features in Detail**
 
 ### Spanning Cards

@@ -6,8 +6,8 @@ import type { User } from './types'
 import { AuthPage } from './pages/AuthPage'
 import { BoardPage } from './pages/BoardPage'
 import { Dashboard } from './pages/Dashboard'
-import { DemoPage } from './pages/DemoPage'
 import { Layout } from './components/layout/Layout'
+import { UserApprovalCheck } from './components/auth/UserApprovalCheck'
 
 function App() {
   const [user, setUser] = useState<User | null>(null)
@@ -41,20 +41,21 @@ function App() {
 
   return (
     <QueryProvider>
-      <Router>
+      <Router basename="/todo-app">
         <div className="min-h-screen bg-gray-900">
           {user ? (
-            <Layout user={user}>
-              <Routes>
-                <Route path="/" element={<Dashboard />} />
-                <Route path="/board/:id" element={<BoardPage />} />
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
-            </Layout>
+            <UserApprovalCheck user={user}>
+              <Layout user={user}>
+                <Routes>
+                  <Route path="/" element={<Dashboard />} />
+                  <Route path="/board/:id" element={<BoardPage />} />
+                  <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
+              </Layout>
+            </UserApprovalCheck>
           ) : (
             <Routes>
               <Route path="/auth" element={<AuthPage />} />
-              <Route path="/demo" element={<DemoPage />} />
               <Route path="*" element={<Navigate to="/auth" replace />} />
             </Routes>
           )}

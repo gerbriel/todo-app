@@ -77,26 +77,17 @@ export function AuthPage() {
           </Button>
         </form>
 
-        <div className="mt-6 text-center space-y-3">
+        <div className="mt-6 text-center">
           <button
             type="button"
             onClick={() => setIsLogin(!isLogin)}
-            className="text-primary-400 hover:text-primary-300 text-sm block w-full"
+            className="text-primary-400 hover:text-primary-300 text-sm"
             disabled={loading}
           >
             {isLogin 
-              ? "Don't have an account? Sign up" 
+              ? "Don't have an account? Contact admin for access" 
               : "Already have an account? Sign in"
             }
-          </button>
-          
-          <button
-            type="button"
-            onClick={() => window.location.href = '/demo'}
-            className="text-gray-400 hover:text-gray-300 text-sm block w-full border border-gray-600 rounded-lg py-2"
-            disabled={loading}
-          >
-            🚀 View Demo (No Account Required)
           </button>
         </div>
       </div>

@@ -1,16 +1,20 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Plus, Calendar, Archive } from 'lucide-react'
+import { Plus, Calendar, Archive, Users } from 'lucide-react'
 import { boardsApi } from '../api/boards'
+import { userApi, type UserProfile } from '../api/users'
 import { Button } from '../components/ui/Button'
 import { Modal } from '../components/ui/Modal'
 import { Input } from '../components/ui/Input'
 import { Textarea } from '../components/ui/Textarea'
+import { UserManagement } from '../components/admin/UserManagement'
 import type { CreateBoardData } from '../types'
 
 export function Dashboard() {
   const [showCreateBoard, setShowCreateBoard] = useState(false)
   const [newBoard, setNewBoard] = useState({ name: '', description: '' })
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null)
+  const [showUserManagement, setShowUserManagement] = useState(false)
 
   // For now, using a mock workspace ID
   const workspaceId = 'mock-workspace-id'
@@ -19,6 +23,18 @@ export function Dashboard() {
     queryKey: ['boards', workspaceId],
     queryFn: () => boardsApi.getBoards(workspaceId),
   })
+
+  useEffect(() => {
+    const loadCurrentUser = async () => {
+      try {
+        const user = await userApi.getCurrentProfile()
+        setCurrentUser(user)
+      } catch (error) {
+        console.error('Error loading current user:', error)
+      }
+    }
+    loadCurrentUser()
+  }, [])
 
   const handleCreateBoard = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -57,6 +73,12 @@ export function Dashboard() {
         </div>
         
         <div className="flex items-center space-x-3">
+          {currentUser?.is_admin && (
+            <Button variant="secondary" onClick={() => setShowUserManagement(!showUserManagement)}>
+              <Users className="w-4 h-4 mr-2" />
+              Manage Users
+            </Button>
+          )}
           <Button variant="secondary">
             <Calendar className="w-4 h-4 mr-2" />
             Calendar
@@ -108,6 +130,13 @@ export function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* User Management Section for Admins */}
+      {showUserManagement && currentUser?.is_admin && (
+        <div className="mt-8">
+          <UserManagement />
+        </div>
+      )}
 
       {/* Create Board Modal */}
       <Modal

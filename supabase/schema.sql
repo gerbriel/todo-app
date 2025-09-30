@@ -125,8 +125,19 @@ CREATE TABLE profiles (
   email text UNIQUE NOT NULL,
   name text,
   avatar_url text,
+  is_admin boolean DEFAULT false,
+  is_approved boolean DEFAULT false,
   created_at timestamptz DEFAULT now(),
   updated_at timestamptz DEFAULT now()
+);
+
+-- Create allowed users table for email whitelist
+CREATE TABLE allowed_users (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  email text UNIQUE NOT NULL,
+  invited_by uuid REFERENCES auth.users(id),
+  is_admin boolean DEFAULT false,
+  created_at timestamptz DEFAULT now()
 );
 
 -- Set up Row Level Security (RLS)
@@ -143,18 +154,76 @@ ALTER TABLE card_custom_field_values ENABLE ROW LEVEL SECURITY;
 ALTER TABLE attachments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE activity ENABLE ROW LEVEL SECURITY;
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE allowed_users ENABLE ROW LEVEL SECURITY;
 
--- RLS Policies (basic setup - customize as needed)
+-- RLS Policies
 CREATE POLICY "Users can view their own profile" ON profiles FOR SELECT USING (auth.uid() = id);
 CREATE POLICY "Users can update their own profile" ON profiles FOR UPDATE USING (auth.uid() = id);
+
+-- Only approved users can access the app
+CREATE POLICY "Only approved users can view profiles" ON profiles FOR SELECT USING (
+  EXISTS (
+    SELECT 1 FROM profiles 
+    WHERE id = auth.uid() AND is_approved = true
+  )
+);
+
+-- Only admins can manage allowed users
+CREATE POLICY "Only admins can view allowed users" ON allowed_users FOR SELECT USING (
+  EXISTS (
+    SELECT 1 FROM profiles 
+    WHERE id = auth.uid() AND is_admin = true AND is_approved = true
+  )
+);
+
+CREATE POLICY "Only admins can insert allowed users" ON allowed_users FOR INSERT WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM profiles 
+    WHERE id = auth.uid() AND is_admin = true AND is_approved = true
+  )
+);
+
+CREATE POLICY "Only admins can update allowed users" ON allowed_users FOR UPDATE USING (
+  EXISTS (
+    SELECT 1 FROM profiles 
+    WHERE id = auth.uid() AND is_admin = true AND is_approved = true
+  )
+);
+
+CREATE POLICY "Only admins can delete allowed users" ON allowed_users FOR DELETE USING (
+  EXISTS (
+    SELECT 1 FROM profiles 
+    WHERE id = auth.uid() AND is_admin = true AND is_approved = true
+  )
+);
 
 -- Function to automatically create profile on user signup
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger AS $$
+DECLARE
+  allowed_user_record RECORD;
 BEGIN
-  INSERT INTO public.profiles (id, email)
-  VALUES (new.id, new.email);
-  RETURN new;
+  -- Check if user email is in allowed_users table
+  SELECT * INTO allowed_user_record 
+  FROM allowed_users 
+  WHERE email = NEW.email;
+  
+  -- Only create profile if user is in whitelist
+  IF allowed_user_record.email IS NOT NULL THEN
+    INSERT INTO public.profiles (id, email, is_admin, is_approved)
+    VALUES (
+      NEW.id, 
+      NEW.email, 
+      allowed_user_record.is_admin,
+      true
+    );
+  ELSE
+    -- Create profile but mark as not approved
+    INSERT INTO public.profiles (id, email, is_admin, is_approved)
+    VALUES (NEW.id, NEW.email, false, false);
+  END IF;
+  
+  RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
@@ -182,3 +251,8 @@ CREATE TRIGGER update_custom_fields_updated_at BEFORE UPDATE ON custom_fields FO
 CREATE TRIGGER update_checklists_updated_at BEFORE UPDATE ON checklists FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
 CREATE TRIGGER update_checklist_items_updated_at BEFORE UPDATE ON checklist_items FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
 CREATE TRIGGER update_profiles_updated_at BEFORE UPDATE ON profiles FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+
+-- Insert initial admin user (replace with your email)
+INSERT INTO allowed_users (email, is_admin) 
+VALUES ('gabrielriosemail@gmail.com.com', true)
+ON CONFLICT (email) DO NOTHING;
