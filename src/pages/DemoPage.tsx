@@ -77,7 +77,7 @@ function BoardEditForm({ board, onSave, onCancel }: BoardEditFormProps) {
 const demoBoards: BoardType[] = [
   {
     id: 'demo-board-1',
-    workspace_id: 'demo-workspace',
+  workspace_id: 'afa0b21a-9585-4e62-9908-9c36ed9b0d25',
     name: 'Demo Project Board',
     description: 'Welcome to your project management demo!',
     position: 0,
@@ -902,7 +902,6 @@ export function DemoPage() {
               onUnarchiveCard={handleUnarchiveCard}
               onDeleteCard={handleDeleteCard}
               onMoveCardToBoard={handleMoveCardToBoard}
-              availableBoards={boards}
             />
           </div>
         )
@@ -975,7 +974,6 @@ export function DemoPage() {
           onUnarchiveCard={handleUnarchiveCard}
           onDeleteCard={handleDeleteCard}
           onMoveCardToBoard={handleMoveCardToBoard}
-          availableBoards={boards}
         />
     }
   }
@@ -1119,6 +1117,7 @@ export function DemoPage() {
           onSave={handleCardEditSave}
           card={cardEditModal.card}
           availableLabels={labels}
+          workspaceId="demo-workspace"
         />
       )}
 

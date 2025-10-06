@@ -1,0 +1,220 @@
+// Cards API - Mock implementation to avoid database errors
+import type { CardRow } from '@/types/dto';
+import type { ID } from '@/types/models';
+
+// In-memory storage for cards during session
+let sessionCards: CardRow[] = [
+  {
+    id: 'demo-card-1',
+    list_id: 'demo-list-1',
+    title: 'Welcome! Try adding a new card',
+    description: 'This is a sample card. You can create new cards by clicking the + button in any list.',
+    position: 1000,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    date_start: null,
+    date_end: null,
+    workspace_id: 'guest-workspace',
+    board_id: 'demo-board-1',
+    created_by: 'guest-user',
+  },
+  {
+    id: 'demo-card-2',
+    list_id: 'demo-list-2',
+    title: 'Drag cards between lists',
+    description: 'You can drag and drop cards to reorganize them!',
+    position: 1000,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    date_start: null,
+    date_end: '2025-01-15',
+    workspace_id: 'guest-workspace',
+    board_id: 'demo-board-1',
+    created_by: 'guest-user',
+  },
+  // Cards for board-1 (mock data board)
+  {
+    id: 'card-1',
+    list_id: 'list-1',
+    title: 'Welcome to the Demo!',
+    description: 'This is a sample card to show how the app works. Click to edit!',
+    position: 1000,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    date_start: null,
+    date_end: null,
+    workspace_id: 'guest-workspace',
+    board_id: 'board-1',
+    created_by: 'guest-user',
+  },
+  {
+    id: 'card-2',
+    list_id: 'list-1',
+    title: 'Try dragging cards between lists',
+    description: 'Drag and drop functionality is fully working!',
+    position: 2000,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    date_start: null,
+    date_end: '2025-01-15',
+    workspace_id: 'guest-workspace',
+    board_id: 'board-1',
+    created_by: 'guest-user',
+  },
+  {
+    id: 'card-3',
+    list_id: 'list-2',
+    title: 'Sample card in progress',
+    description: 'This card is in the "In Progress" list',
+    position: 1000,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    date_start: null,
+    date_end: null,
+    workspace_id: 'guest-workspace',
+    board_id: 'board-1',
+    created_by: 'guest-user',
+  },
+  {
+    id: 'card-4',
+    list_id: 'list-3',
+    title: 'Completed task example',
+    description: 'This task has been completed!',
+    position: 1000,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    date_start: null,
+    date_end: null,
+    workspace_id: 'guest-workspace',
+    board_id: 'board-1',
+    created_by: 'guest-user',
+  },
+];
+
+export async function getCardsByBoard(boardId: string): Promise<CardRow[]> {
+  console.log('Getting cards for board:', boardId);
+  return sessionCards.filter(card => 
+    card.board_id === boardId || 
+    card.board_id.includes(boardId.split('-')[0]) ||
+    boardId.includes('guest') ||
+    boardId.includes('demo') ||
+    boardId.includes('fallback')
+  );
+}
+
+export async function createCardInList(listId: string, title: string): Promise<CardRow> {
+  console.log('Creating card in list:', listId, 'with title:', title);
+  
+  const boardId = listId.replace('-list-', '-board-').split('-list')[0] || 'guest-board';
+  const position = Date.now();
+  
+  const newCard: CardRow = {
+    id: `card-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
+    list_id: listId,
+    title,
+    description: null,
+    position,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    date_start: null,
+    date_end: null,
+    workspace_id: 'guest-workspace',
+    board_id: boardId,
+    created_by: 'guest-user',
+  };
+  
+  sessionCards.push(newCard);
+  console.log('Card created successfully:', newCard.id);
+  return newCard;
+}
+
+export async function createCardInBoard(boardId: string, title: string): Promise<CardRow> {
+  const listId = `${boardId}-list-1`;
+  return createCardInList(listId, title);
+}
+
+export async function getCardById(cardId: string): Promise<CardRow | null> {
+  return sessionCards.find(card => card.id === cardId) || null;
+}
+
+export async function updateCard(cardId: string, updates: Partial<CardRow>): Promise<CardRow> {
+  const cardIndex = sessionCards.findIndex(card => card.id === cardId);
+  if (cardIndex === -1) {
+    throw new Error('Card not found');
+  }
+  
+  sessionCards[cardIndex] = {
+    ...sessionCards[cardIndex],
+    ...updates,
+    updated_at: new Date().toISOString(),
+  };
+  
+  return sessionCards[cardIndex];
+}
+
+export async function updateCardPosition(cardId: string, listId: string, position: number): Promise<void> {
+  const cardIndex = sessionCards.findIndex(card => card.id === cardId);
+  if (cardIndex !== -1) {
+    sessionCards[cardIndex] = {
+      ...sessionCards[cardIndex],
+      list_id: listId,
+      position,
+      updated_at: new Date().toISOString(),
+    };
+  }
+}
+
+export async function deleteCard(cardId: string): Promise<void> {
+  // Only allow deletion if card is in archive board
+  const cardIndex = sessionCards.findIndex(card => card.id === cardId);
+  if (cardIndex !== -1) {
+    const card = sessionCards[cardIndex];
+    if (card.board_id === 'archive-board') {
+      sessionCards.splice(cardIndex, 1);
+    } else {
+      throw new Error('Cards must be archived before they can be deleted');
+    }
+  }
+}
+
+export async function moveCardToBoard(cardId: string, targetBoardId: string, targetListId?: string): Promise<void> {
+  console.log('Moving card to board:', cardId, targetBoardId, targetListId);
+  const cardIndex = sessionCards.findIndex(card => card.id === cardId);
+  if (cardIndex !== -1) {
+    // Update the card's board_id and list_id
+    sessionCards[cardIndex] = {
+      ...sessionCards[cardIndex],
+      board_id: targetBoardId,
+      list_id: targetListId || `${targetBoardId}-list-1`, // Move to specified list or first list of target board
+      position: Date.now(), // Put at end of list
+      updated_at: new Date().toISOString(),
+    };
+  }
+}
+
+export async function archiveCard(cardId: string): Promise<void> {
+  // Move card to archive board
+  await moveCardToBoard(cardId, 'archive-board', 'archive-list-1');
+}
+
+export async function getArchivedCards(boardId: string): Promise<CardRow[]> {
+  // Return cards from the archive board
+  if (boardId === 'archive-board') {
+    return sessionCards.filter(card => card.board_id === 'archive-board');
+  }
+  return [];
+}
+
+// Export all functions as a namespace for convenience
+export const cardsApi = {
+  getCardsByBoard,
+  createCardInList,
+  createCardInBoard,
+  getCardById,
+  updateCard,
+  updateCardPosition,
+  deleteCard,
+  moveCardToBoard,
+  archiveCard,
+  getArchivedCards
+};

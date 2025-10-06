@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { MoreHorizontal, Edit2, Archive, Trash2, ArchiveRestore } from 'lucide-react'
+import { BoardSelector } from './BoardSelector'
+import type { Board } from '../../types'
 
 interface ActionMenuProps {
   isArchived?: boolean
@@ -9,6 +11,13 @@ interface ActionMenuProps {
   onUnarchive?: () => void
   onDelete?: () => void
   position?: 'top' | 'bottom'
+  // Move functionality
+  showMoveOption?: boolean
+  itemType?: 'card' | 'list'
+  itemName?: string
+  boards?: Board[]
+  currentBoardId?: string
+  onMoveToBoard?: (boardId: string, listId?: string) => void
 }
 
 export function ActionMenu({
@@ -18,7 +27,14 @@ export function ActionMenu({
   onArchive,
   onUnarchive,
   onDelete,
-  position = 'bottom'
+  position = 'bottom',
+  // Move props
+  showMoveOption = false,
+  itemType = 'card',
+  itemName = '',
+  boards = [],
+  currentBoardId = '',
+  onMoveToBoard,
 }: ActionMenuProps) {
   const [isOpen, setIsOpen] = useState(false)
 
@@ -62,6 +78,20 @@ export function ActionMenu({
                   <Edit2 className="w-4 h-4" />
                   <span>Edit</span>
                 </button>
+              )}
+              
+              {showMoveOption && !isArchived && onMoveToBoard && (
+                <BoardSelector
+                  boards={boards}
+                  currentBoardId={currentBoardId}
+                  onMoveToBoard={onMoveToBoard}
+                  itemType={itemType}
+                  itemName={itemName}
+                />
+              )}
+              
+              {(onEdit || (showMoveOption && !isArchived)) && (onArchive || onUnarchive) && (
+                <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
               )}
               
               {!isArchived && onArchive && (

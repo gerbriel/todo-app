@@ -24,7 +24,8 @@ export function AuthPage() {
         if (error) throw error
       }
     } catch (error: any) {
-      setError(error.message)
+      console.error('Auth error:', error)
+      setError(error.message || 'Authentication failed')
     } finally {
       setLoading(false)
     }

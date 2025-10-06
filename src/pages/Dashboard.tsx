@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { Plus, Calendar, Archive, Users } from 'lucide-react'
 import { boardsApi } from '../api/boards'
 import { userApi, type UserProfile } from '../api/users'
@@ -11,13 +12,14 @@ import { UserManagement } from '../components/admin/UserManagement'
 import type { CreateBoardData } from '../types'
 
 export function Dashboard() {
+  const navigate = useNavigate()
   const [showCreateBoard, setShowCreateBoard] = useState(false)
   const [newBoard, setNewBoard] = useState({ name: '', description: '' })
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null)
   const [showUserManagement, setShowUserManagement] = useState(false)
 
-  // For now, using a mock workspace ID
-  const workspaceId = 'mock-workspace-id'
+  // Use the real workspace UUID
+  const workspaceId = 'afa0b21a-9585-4e62-9908-9c36ed9b0d25'
 
   const { data: boards = [], isLoading, refetch } = useQuery({
     queryKey: ['boards', workspaceId],
@@ -100,7 +102,7 @@ export function Dashboard() {
           <div
             key={board.id}
             className="bg-gray-800 rounded-lg p-6 hover:bg-gray-700 transition-colors cursor-pointer border border-gray-700"
-            onClick={() => window.location.href = `/board/${board.id}`}
+            onClick={() => navigate(`/board/${board.id}`)}
           >
             <h3 className="text-lg font-semibold text-gray-100 mb-2">
               {board.name}

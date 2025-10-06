@@ -3,11 +3,11 @@ import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { Plus } from 'lucide-react'
-import type { List, Card, Board as BoardType } from '../../types'
+import type { List, Card, Board } from '../../types'
 import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
 import { ActionMenu } from '../ui/ActionMenu'
-import { SortableCard } from '../card/SortableCard'
+import SortableCard from '../SortableCard'
 
 interface SortableListProps {
   list: List
@@ -22,8 +22,9 @@ interface SortableListProps {
   onUnarchiveCard?: (cardId: string) => void
   onDeleteCard?: (cardId: string) => void
   onMoveCardToBoard?: (cardId: string, boardId: string, listId: string) => void
-  availableBoards?: BoardType[]
+  onMoveListToBoard?: (listId: string, boardId: string) => void
   currentBoardId?: string
+  allBoards?: Board[]
 }
 
 export function SortableList({
@@ -39,8 +40,9 @@ export function SortableList({
   onUnarchiveCard,
   onDeleteCard,
   onMoveCardToBoard,
-  availableBoards = [],
+  onMoveListToBoard,
   currentBoardId,
+  allBoards = [],
 }: SortableListProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [editName, setEditName] = useState(list.name)
@@ -138,6 +140,12 @@ export function SortableList({
               onArchive={onArchiveList ? () => onArchiveList(list.id) : undefined}
               onUnarchive={onUnarchiveList ? () => onUnarchiveList(list.id) : undefined}
               onDelete={onDeleteList ? () => onDeleteList(list.id) : undefined}
+              showMoveOption={true}
+              itemType="list"
+              itemName={list.name}
+              boards={allBoards}
+              currentBoardId={currentBoardId}
+              onMoveToBoard={(boardId) => onMoveListToBoard?.(list.id, boardId)}
             />
           )}
         </div>
@@ -162,8 +170,8 @@ export function SortableList({
               onUnarchive={onUnarchiveCard}
               onDelete={onDeleteCard}
               onMoveToBoard={onMoveCardToBoard}
-              availableBoards={availableBoards}
               currentBoardId={currentBoardId}
+              availableBoards={allBoards}
             />
           ))}
         </SortableContext>

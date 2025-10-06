@@ -8,11 +8,11 @@ import {
 } from '@dnd-kit/core'
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core'
 import { SortableContext, horizontalListSortingStrategy } from '@dnd-kit/sortable'
-import { Plus } from 'lucide-react'
+import { Plus, Tags } from 'lucide-react'
 import type { Board as BoardType, Card } from '../../types'
 import { Button } from '../ui/Button'
 import { SortableList } from './SortableList'
-import { SortableCard } from '../card/SortableCard'
+import SortableCard from '../SortableCard'
 import { CreateListForm } from './CreateListForm'
 
 interface BoardProps {
@@ -31,7 +31,10 @@ interface BoardProps {
   onUnarchiveCard?: (cardId: string) => void
   onDeleteCard?: (cardId: string) => void
   onMoveCardToBoard?: (cardId: string, boardId: string, listId: string) => void
-  availableBoards?: BoardType[]
+  onMoveListToBoard?: (listId: string, boardId: string) => void
+  onOpenLabelManager?: () => void
+  // Props for move functionality
+  allBoards?: BoardType[]
 }
 
 export function Board({
@@ -50,7 +53,9 @@ export function Board({
   onUnarchiveCard,
   onDeleteCard,
   onMoveCardToBoard,
-  availableBoards = []
+  onMoveListToBoard,
+  onOpenLabelManager,
+  allBoards = []
 }: BoardProps) {
   const [activeCard, setActiveCard] = useState<Card | null>(null)
   const [showCreateList, setShowCreateList] = useState(false)
@@ -126,11 +131,22 @@ export function Board({
 
   return (
     <div className="h-full p-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-100">{board.name}</h1>
-        {board.description && (
-          <p className="text-gray-400 mt-1">{board.description}</p>
-        )}
+      <div className="mb-6 flex justify-between items-start">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-100">{board.name}</h1>
+          {board.description && (
+            <p className="text-gray-400 mt-1">{board.description}</p>
+          )}
+        </div>
+        <Button
+          onClick={onOpenLabelManager}
+          variant="secondary"
+          size="sm"
+          className="flex items-center gap-2"
+        >
+          <Tags className="h-4 w-4" />
+          Manage Labels
+        </Button>
       </div>
 
       <DndContext
@@ -155,8 +171,9 @@ export function Board({
                 onUnarchiveCard={onUnarchiveCard}
                 onDeleteCard={onDeleteCard}
                 onMoveCardToBoard={onMoveCardToBoard}
-                availableBoards={availableBoards}
+                onMoveListToBoard={onMoveListToBoard}
                 currentBoardId={board.id}
+                allBoards={allBoards}
               />
             ))}
           </SortableContext>
