@@ -1,7 +1,7 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import List from './List';
-import type { ListRow, CardRow } from '@/types/dto';
+import type { ListRow, CardRow, BoardRow } from '@/types/dto';
 
 interface SortableListProps {
   list: ListRow;
@@ -10,6 +10,10 @@ interface SortableListProps {
   onUpdateList?: (id: string, data: { name?: string; position?: number }) => void;
   onCreateCard?: (listId: string, title: string) => void;
   onDeleteList?: (listId: string) => void;
+  onMoveCardToBoard?: (cardId: string, boardId: string, listId: string) => void;
+  onMoveListToBoard?: (listId: string, boardId: string) => void;
+  boards?: BoardRow[];
+  currentBoardId?: string;
 }
 
 export default function SortableList({ 
@@ -18,7 +22,11 @@ export default function SortableList({
   highlighted,
   onUpdateList,
   onCreateCard,
-  onDeleteList
+  onDeleteList,
+  onMoveCardToBoard,
+  onMoveListToBoard,
+  boards,
+  currentBoardId
 }: SortableListProps) {
   const {
     attributes,
@@ -54,6 +62,10 @@ export default function SortableList({
         onUpdateList={onUpdateList}
         onCreateCard={onCreateCard}
         onDeleteList={onDeleteList}
+        onMoveCardToBoard={onMoveCardToBoard}
+        onMoveListToBoard={onMoveListToBoard}
+        boards={boards}
+        currentBoardId={currentBoardId}
       />
     </div>
   );

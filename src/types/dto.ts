@@ -66,6 +66,13 @@ export type CardRow = {
       text?: string;
       done: boolean;
       position?: number;
+      // Enhanced checklist items with dates and assignments
+      due_date?: string | null;
+      assigned_to?: string | null;
+      assigned_member_name?: string | null;
+      priority?: 'low' | 'medium' | 'high' | null;
+      created_at?: string;
+      completed_at?: string | null;
     }>;
   }>;
   // Optional activity log
@@ -76,6 +83,20 @@ export type CardRow = {
     actor_id: string;
     created_at: string;
   }>;
+  // AI-generated ad copy sections
+  ad_copies?: Array<{
+    id: string;
+    title: string;
+    platform: 'facebook' | 'google' | 'instagram' | 'linkedin' | 'twitter' | 'tiktok' | 'custom';
+    graphics_copy: string;
+    subheadline: string;
+    description: string;
+    primary_text: string;
+    generated_at: string;
+    ai_model_used?: string;
+    is_approved?: boolean;
+    position?: number;
+  }>;
 };
 
 export type BoardRow = {
@@ -83,6 +104,8 @@ export type BoardRow = {
   workspace_id: string;
   name: string;
   background_url?: string | null;
+  position?: number;
+  archived?: boolean;
   created_at?: string;
   updated_at?: string;
 };

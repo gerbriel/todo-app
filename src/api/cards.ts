@@ -1,6 +1,7 @@
 // Cards API - Full implementation with localStorage persistence and complete card features
 import type { CardRow } from '@/types/dto';
 import type { ID } from '@/types/models';
+import { generateAdCopy, type AdCopyRequest } from '@/services/aiService';
 
 // Enhanced card type for our implementation
 type EnhancedCardRow = CardRow & {
@@ -535,6 +536,118 @@ export async function removeAttachmentFromCard(cardId: string, attachmentId: str
   }
 }
 
+// === AI AD COPY MANAGEMENT ===
+export async function generateAdCopyForCard(
+  cardId: string, 
+  platform: 'facebook' | 'google' | 'instagram' | 'linkedin' | 'twitter' | 'tiktok' | 'custom',
+  options?: {
+    targetAudience?: string;
+    tone?: 'professional' | 'casual' | 'playful' | 'urgent' | 'informative';
+    objective?: 'awareness' | 'conversion' | 'engagement' | 'traffic' | 'leads';
+  }
+): Promise<string> {
+  const card = sessionCards.find(c => c.id === cardId);
+  if (!card) {
+    throw new Error('Card not found');
+  }
+
+  const request: AdCopyRequest = {
+    cardTitle: card.title,
+    cardDescription: typeof card.description === 'string' ? card.description : '',
+    platform,
+    targetAudience: options?.targetAudience,
+    tone: options?.tone || 'professional',
+    objective: options?.objective || 'conversion'
+  };
+
+  try {
+    const adCopy = await generateAdCopy(request);
+    
+    const adCopyId = `ad-copy-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+    const cardIndex = sessionCards.findIndex(c => c.id === cardId);
+    
+    if (cardIndex !== -1) {
+      if (!sessionCards[cardIndex].ad_copies) {
+        sessionCards[cardIndex].ad_copies = [];
+      }
+
+      const newAdCopy = {
+        id: adCopyId,
+        title: `${platform.charAt(0).toUpperCase() + platform.slice(1)} Ad Copy`,
+        platform: platform as any,
+        graphics_copy: adCopy.graphics_copy,
+        subheadline: adCopy.subheadline,
+        description: adCopy.description,
+        primary_text: adCopy.primary_text,
+        generated_at: new Date().toISOString(),
+        ai_model_used: 'Mock AI Service',
+        is_approved: false,
+        position: sessionCards[cardIndex].ad_copies!.length + 1
+      };
+
+      sessionCards[cardIndex].ad_copies!.push(newAdCopy);
+      sessionCards[cardIndex].updated_at = new Date().toISOString();
+      
+      saveCards(sessionCards);
+      return adCopyId;
+    }
+    
+    throw new Error('Failed to save ad copy');
+  } catch (error) {
+    console.error('Failed to generate ad copy:', error);
+    throw error;
+  }
+}
+
+export async function updateAdCopy(
+  cardId: string, 
+  adCopyId: string, 
+  updates: {
+    graphics_copy?: string;
+    subheadline?: string;
+    description?: string;
+    primary_text?: string;
+    is_approved?: boolean;
+  }
+): Promise<void> {
+  const cardIndex = sessionCards.findIndex(c => c.id === cardId);
+  if (cardIndex !== -1) {
+    const card = sessionCards[cardIndex];
+    const adCopyIndex = card.ad_copies?.findIndex(ac => ac.id === adCopyId);
+    
+    if (adCopyIndex !== undefined && adCopyIndex !== -1 && card.ad_copies) {
+      card.ad_copies[adCopyIndex] = {
+        ...card.ad_copies[adCopyIndex],
+        ...updates
+      };
+      
+      sessionCards[cardIndex].updated_at = new Date().toISOString();
+      saveCards(sessionCards);
+    }
+  }
+}
+
+export async function deleteAdCopy(cardId: string, adCopyId: string): Promise<void> {
+  const cardIndex = sessionCards.findIndex(c => c.id === cardId);
+  if (cardIndex !== -1) {
+    const card = sessionCards[cardIndex];
+    if (card.ad_copies) {
+      card.ad_copies = card.ad_copies.filter(ac => ac.id !== adCopyId);
+      sessionCards[cardIndex].updated_at = new Date().toISOString();
+      saveCards(sessionCards);
+    }
+  }
+}
+
+export async function approveAdCopy(cardId: string, adCopyId: string): Promise<void> {
+  await updateAdCopy(cardId, adCopyId, { is_approved: true });
+}
+
+export async function getAdCopiesForCard(cardId: string): Promise<Array<NonNullable<CardRow['ad_copies']>[0]>> {
+  const card = sessionCards.find(c => c.id === cardId);
+  return card?.ad_copies || [];
+}
+
 // Export all functions as a namespace for convenience
 export const cardsApi = {
   getCardsByBoard,
@@ -563,5 +676,11 @@ export const cardsApi = {
   removeCommentFromCard,
   // Attachment management
   addAttachmentToCard,
-  removeAttachmentFromCard
+  removeAttachmentFromCard,
+  // AI Ad Copy management
+  generateAdCopyForCard,
+  updateAdCopy,
+  deleteAdCopy,
+  approveAdCopy,
+  getAdCopiesForCard
 };

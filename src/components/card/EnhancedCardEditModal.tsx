@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Edit2, Calendar, User, Tag, FileText, Check, Move, Paperclip, MapPin, Users, Archive, Copy, Plus, Trash2 } from 'lucide-react';
+import { X, Edit2, Calendar, User, Tag, FileText, Check, Move, Paperclip, MapPin, Users, Archive, Copy, Sparkles } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getBoards } from '@/api/boards';
 import { 
@@ -20,6 +20,9 @@ import {
   removeAttachmentFromCard
 } from '@/api/cards';
 import type { CardRow, BoardRow } from '@/types/dto';
+import AIAdCopyManager from './AIAdCopyManager';
+import AdvancedLabelManager from '../label/AdvancedLabelManager';
+import LabelCreationModal from '../label/LabelCreationModal';
 
 interface CardLabel {
   id: string;
@@ -101,7 +104,29 @@ export default function CardEditModal({ card, isOpen, onClose, onSave }: CardEdi
   ]);
 
   const [newComment, setNewComment] = useState('');
-  const [activeTab, setActiveTab] = useState<'details' | 'activity'>('details');
+  const [activeTab, setActiveTab] = useState<'details' | 'activity' | 'ai-copy'>('details');
+  
+  // Modal states for different actions
+  const [showMemberModal, setShowMemberModal] = useState(false);
+  const [showLabelModal, setShowLabelModal] = useState(false);
+  const [showLabelCreationModal, setShowLabelCreationModal] = useState(false);
+  const [showChecklistModal, setShowChecklistModal] = useState(false);
+  const [showDatesModal, setShowDatesModal] = useState(false);
+  const [showAttachmentModal, setShowAttachmentModal] = useState(false);
+  const [showLocationModal, setShowLocationModal] = useState(false);
+  const [showArchiveModal, setShowArchiveModal] = useState(false);
+  const [copySuccess, setCopySuccess] = useState(false);
+  
+  // Form states
+  const [memberForm, setMemberForm] = useState({ name: '', email: '' });
+  const [labelForm, setLabelForm] = useState({ name: '', color: '#3B82F6' });
+  const [checklistForm, setChecklistForm] = useState({ title: '' });
+  const [datesForm, setDatesForm] = useState({ 
+    start_date: formData.date_start || '', 
+    end_date: formData.date_end || '' 
+  });
+  const [attachmentForm, setAttachmentForm] = useState({ name: '', url: '' });
+  const [locationForm, setLocationForm] = useState({ address: '', coordinates: '' });
 
   const queryClient = useQueryClient();
 
@@ -306,6 +331,17 @@ export default function CardEditModal({ card, isOpen, onClose, onSave }: CardEdi
               >
                 Activity ({comments.length})
               </button>
+              <button
+                onClick={() => setActiveTab('ai-copy')}
+                className={`flex items-center space-x-1 px-3 py-1 rounded-md text-sm font-medium ${
+                  activeTab === 'ai-copy' 
+                    ? 'bg-purple-100 text-purple-700' 
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <Sparkles className="w-3 h-3" />
+                <span>AI Copy</span>
+              </button>
             </div>
           </div>
           <button 
@@ -475,7 +511,7 @@ export default function CardEditModal({ card, isOpen, onClose, onSave }: CardEdi
                   </div>
                 </div>
               </div>
-            ) : (
+            ) : activeTab === 'activity' ? (
               /* Activity Tab */
               <div className="space-y-6">
                 {/* Add Comment */}
@@ -522,6 +558,9 @@ export default function CardEditModal({ card, isOpen, onClose, onSave }: CardEdi
                   ))}
                 </div>
               </div>
+            ) : (
+              /* AI Copy Tab */
+              <AIAdCopyManager card={card} />
             )}
           </div>
 
@@ -529,49 +568,94 @@ export default function CardEditModal({ card, isOpen, onClose, onSave }: CardEdi
           <div className="w-64 border-l bg-gray-50 text-gray-900 p-4">
             <h3 className="font-medium text-gray-900 mb-4">Actions</h3>
             <div className="space-y-2">
-              <button className="w-full flex items-center space-x-2 p-2 text-left hover:bg-gray-100 rounded">
+              <button 
+                onClick={() => setShowMemberModal(true)}
+                className="w-full flex items-center space-x-2 p-2 text-left hover:bg-gray-100 rounded"
+              >
                 <Users className="w-4 h-4" />
                 <span className="text-sm">Members</span>
               </button>
-              <button className="w-full flex items-center space-x-2 p-2 text-left hover:bg-gray-100 rounded">
+              <button 
+                onClick={() => setShowLabelModal(true)}
+                className="w-full flex items-center space-x-2 p-2 text-left hover:bg-gray-100 rounded"
+              >
                 <Tag className="w-4 h-4" />
                 <span className="text-sm">Labels</span>
               </button>
-              <button className="w-full flex items-center space-x-2 p-2 text-left hover:bg-gray-100 rounded">
+              <button 
+                onClick={() => setShowChecklistModal(true)}
+                className="w-full flex items-center space-x-2 p-2 text-left hover:bg-gray-100 rounded"
+              >
                 <Check className="w-4 h-4" />
                 <span className="text-sm">Checklist</span>
               </button>
-              <button className="w-full flex items-center space-x-2 p-2 text-left hover:bg-gray-100 rounded">
+              <button 
+                onClick={() => setShowDatesModal(true)}
+                className="w-full flex items-center space-x-2 p-2 text-left hover:bg-gray-100 rounded"
+              >
                 <Calendar className="w-4 h-4" />
                 <span className="text-sm">Dates</span>
               </button>
-              <button className="w-full flex items-center space-x-2 p-2 text-left hover:bg-gray-100 rounded">
+              <button 
+                onClick={() => setShowAttachmentModal(true)}
+                className="w-full flex items-center space-x-2 p-2 text-left hover:bg-gray-100 rounded"
+              >
                 <Paperclip className="w-4 h-4" />
                 <span className="text-sm">Attachment</span>
               </button>
-              <button className="w-full flex items-center space-x-2 p-2 text-left hover:bg-gray-100 rounded">
+              <button 
+                onClick={() => setShowLocationModal(true)}
+                className="w-full flex items-center space-x-2 p-2 text-left hover:bg-gray-100 rounded"
+              >
                 <MapPin className="w-4 h-4" />
                 <span className="text-sm">Location</span>
               </button>
               
               <hr className="my-3" />
               
-              <button className="w-full flex items-center space-x-2 p-2 text-left hover:bg-gray-100 rounded">
+              <button 
+                onClick={() => {
+                  // Move functionality is already implemented in the "Move to Board" section below
+                  const moveSection = document.querySelector('[data-move-section]');
+                  if (moveSection) {
+                    moveSection.scrollIntoView({ behavior: 'smooth' });
+                  }
+                }}
+                className="w-full flex items-center space-x-2 p-2 text-left hover:bg-gray-100 rounded"
+              >
                 <Move className="w-4 h-4" />
                 <span className="text-sm">Move</span>
               </button>
-              <button className="w-full flex items-center space-x-2 p-2 text-left hover:bg-gray-100 rounded">
-                <Copy className="w-4 h-4" />
-                <span className="text-sm">Copy</span>
+              <button 
+                onClick={() => {
+                  navigator.clipboard.writeText(JSON.stringify({
+                    title: card.title,
+                    description: card.description,
+                    labels: selectedLabels,
+                    checklist: checklist,
+                    attachments: attachments
+                  }));
+                  setCopySuccess(true);
+                  setTimeout(() => setCopySuccess(false), 2000);
+                }}
+                className={`w-full flex items-center space-x-2 p-2 text-left hover:bg-gray-100 rounded ${copySuccess ? 'bg-green-50' : ''}`}
+              >
+                <Copy className={`w-4 h-4 ${copySuccess ? 'text-green-600' : ''}`} />
+                <span className={`text-sm ${copySuccess ? 'text-green-600' : ''}`}>
+                  {copySuccess ? 'Copied!' : 'Copy'}
+                </span>
               </button>
-              <button className="w-full flex items-center space-x-2 p-2 text-left hover:bg-gray-100 rounded text-red-600">
+              <button 
+                onClick={() => setShowArchiveModal(true)}
+                className="w-full flex items-center space-x-2 p-2 text-left hover:bg-gray-100 rounded text-red-600"
+              >
                 <Archive className="w-4 h-4" />
                 <span className="text-sm">Archive</span>
               </button>
             </div>
 
             {/* Move to Board Section */}
-            <div className="mt-6">
+            <div className="mt-6" data-move-section>
               <h4 className="font-medium text-gray-900 mb-3">Move to Board</h4>
               <div className="space-y-2">
                 {(boardsQuery.data as BoardRow[] || [])
@@ -593,6 +677,339 @@ export default function CardEditModal({ card, isOpen, onClose, onSave }: CardEdi
             </div>
           </div>
         </div>
+
+        {/* Action Modals */}
+        
+        {/* Add Member Modal */}
+        {showMemberModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-96 max-w-90vw">
+              <h3 className="text-lg font-semibold mb-4">Add Member</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                  <input
+                    type="text"
+                    value={memberForm.name}
+                    onChange={(e) => setMemberForm({...memberForm, name: e.target.value})}
+                    className="w-full p-2 border border-gray-300 rounded-md"
+                    placeholder="Enter member name"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email (Optional)</label>
+                  <input
+                    type="email"
+                    value={memberForm.email}
+                    onChange={(e) => setMemberForm({...memberForm, email: e.target.value})}
+                    className="w-full p-2 border border-gray-300 rounded-md"
+                    placeholder="Enter member email"
+                  />
+                </div>
+              </div>
+              <div className="flex space-x-3 mt-6">
+                <button
+                  onClick={() => {
+                    if (memberForm.name.trim()) {
+                      // Add member logic here
+                      console.log('Adding member:', memberForm);
+                      setMemberForm({ name: '', email: '' });
+                      setShowMemberModal(false);
+                    }
+                  }}
+                  className="flex-1 bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600"
+                >
+                  Add Member
+                </button>
+                <button
+                  onClick={() => {
+                    setMemberForm({ name: '', email: '' });
+                    setShowMemberModal(false);
+                  }}
+                  className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Add Label Modal */}
+        <AdvancedLabelManager
+          isOpen={showLabelModal}
+          onClose={() => setShowLabelModal(false)}
+          cardId={card.id}
+          selectedLabelIds={selectedLabels}
+          onLabelsChange={(labelIds) => setSelectedLabels(labelIds)}
+        />
+
+        {/* Label Creation Modal */}
+        <LabelCreationModal
+          isOpen={showLabelCreationModal}
+          onClose={() => setShowLabelCreationModal(false)}
+          onLabelCreated={(label) => {
+            // Add the new label to the card
+            addLabelMutation.mutate({ name: label.name, color: label.color });
+          }}
+        />
+
+        {/* Add Checklist Modal */}
+        {showChecklistModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-96 max-w-90vw">
+              <h3 className="text-lg font-semibold mb-4">Add Checklist</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Checklist Title</label>
+                  <input
+                    type="text"
+                    value={checklistForm.title}
+                    onChange={(e) => setChecklistForm({...checklistForm, title: e.target.value})}
+                    className="w-full p-2 border border-gray-300 rounded-md"
+                    placeholder="Enter checklist title"
+                  />
+                </div>
+              </div>
+              <div className="flex space-x-3 mt-6">
+                <button
+                  onClick={() => {
+                    if (checklistForm.title.trim()) {
+                      addChecklistToCard(card.id, checklistForm.title).then(() => {
+                        queryClient.invalidateQueries({ queryKey: ['cards', card.board_id] });
+                      });
+                      setChecklistForm({ title: '' });
+                      setShowChecklistModal(false);
+                    }
+                  }}
+                  className="flex-1 bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600"
+                >
+                  Add Checklist
+                </button>
+                <button
+                  onClick={() => {
+                    setChecklistForm({ title: '' });
+                    setShowChecklistModal(false);
+                  }}
+                  className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Set Dates Modal */}
+        {showDatesModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-96 max-w-90vw">
+              <h3 className="text-lg font-semibold mb-4">Set Dates</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                  <input
+                    type="date"
+                    value={datesForm.start_date}
+                    onChange={(e) => setDatesForm({...datesForm, start_date: e.target.value})}
+                    className="w-full p-2 border border-gray-300 rounded-md"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+                  <input
+                    type="date"
+                    value={datesForm.end_date}
+                    onChange={(e) => setDatesForm({...datesForm, end_date: e.target.value})}
+                    className="w-full p-2 border border-gray-300 rounded-md"
+                  />
+                </div>
+              </div>
+              <div className="flex space-x-3 mt-6">
+                <button
+                  onClick={() => {
+                    updateCardMutation.mutate({ 
+                      date_start: datesForm.start_date || null, 
+                      date_end: datesForm.end_date || null 
+                    });
+                    setShowDatesModal(false);
+                  }}
+                  className="flex-1 bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600"
+                >
+                  Set Dates
+                </button>
+                <button
+                  onClick={() => setShowDatesModal(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Add Attachment Modal */}
+        {showAttachmentModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-96 max-w-90vw">
+              <h3 className="text-lg font-semibold mb-4">Add Attachment</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">File Name</label>
+                  <input
+                    type="text"
+                    value={attachmentForm.name}
+                    onChange={(e) => setAttachmentForm({...attachmentForm, name: e.target.value})}
+                    className="w-full p-2 border border-gray-300 rounded-md"
+                    placeholder="Enter file name"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">File URL</label>
+                  <input
+                    type="url"
+                    value={attachmentForm.url}
+                    onChange={(e) => setAttachmentForm({...attachmentForm, url: e.target.value})}
+                    className="w-full p-2 border border-gray-300 rounded-md"
+                    placeholder="Enter file URL"
+                  />
+                </div>
+                <div className="text-sm text-gray-500">
+                  Or upload a file:
+                  <input
+                    type="file"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        setAttachmentForm({
+                          name: file.name,
+                          url: URL.createObjectURL(file)
+                        });
+                      }
+                    }}
+                    className="w-full mt-1 p-2 border border-gray-300 rounded-md"
+                  />
+                </div>
+              </div>
+              <div className="flex space-x-3 mt-6">
+                <button
+                  onClick={() => {
+                    if (attachmentForm.name && attachmentForm.url) {
+                      addAttachmentToCard(card.id, {
+                        name: attachmentForm.name,
+                        url: attachmentForm.url,
+                        mime: 'application/octet-stream',
+                        size: 0
+                      }).then(() => {
+                        queryClient.invalidateQueries({ queryKey: ['cards', card.board_id] });
+                      });
+                      setAttachmentForm({ name: '', url: '' });
+                      setShowAttachmentModal(false);
+                    }
+                  }}
+                  className="flex-1 bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600"
+                >
+                  Add Attachment
+                </button>
+                <button
+                  onClick={() => {
+                    setAttachmentForm({ name: '', url: '' });
+                    setShowAttachmentModal(false);
+                  }}
+                  className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Add Location Modal */}
+        {showLocationModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-96 max-w-90vw">
+              <h3 className="text-lg font-semibold mb-4">Add Location</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                  <input
+                    type="text"
+                    value={locationForm.address}
+                    onChange={(e) => setLocationForm({...locationForm, address: e.target.value})}
+                    className="w-full p-2 border border-gray-300 rounded-md"
+                    placeholder="Enter address or location"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Coordinates (Optional)</label>
+                  <input
+                    type="text"
+                    value={locationForm.coordinates}
+                    onChange={(e) => setLocationForm({...locationForm, coordinates: e.target.value})}
+                    className="w-full p-2 border border-gray-300 rounded-md"
+                    placeholder="lat, lng (e.g., 40.7128, -74.0060)"
+                  />
+                </div>
+              </div>
+              <div className="flex space-x-3 mt-6">
+                <button
+                  onClick={() => {
+                    if (locationForm.address.trim()) {
+                      // Add location logic here
+                      console.log('Adding location:', locationForm);
+                      setLocationForm({ address: '', coordinates: '' });
+                      setShowLocationModal(false);
+                    }
+                  }}
+                  className="flex-1 bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600"
+                >
+                  Add Location
+                </button>
+                <button
+                  onClick={() => {
+                    setLocationForm({ address: '', coordinates: '' });
+                    setShowLocationModal(false);
+                  }}
+                  className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Archive Confirmation Modal */}
+        {showArchiveModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-96 max-w-90vw">
+              <h3 className="text-lg font-semibold mb-4 text-red-600">Archive Card</h3>
+              <p className="text-gray-700 mb-6">
+                Are you sure you want to archive "{card.title}"? You can restore it later from the archive.
+              </p>
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => {
+                    updateCardMutation.mutate({ archived: true });
+                    setShowArchiveModal(false);
+                    onClose(); // Close the main modal since card is archived
+                  }}
+                  className="flex-1 bg-red-500 text-white py-2 px-4 rounded-md hover:bg-red-600"
+                >
+                  Archive Card
+                </button>
+                <button
+                  onClick={() => setShowArchiveModal(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Footer */}
         <div className="sticky bottom-0 bg-white text-gray-900 border-t px-6 py-4 flex space-x-3">

@@ -2,8 +2,10 @@ import React from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { Plus } from 'lucide-react';
-import { getListsByBoard, createList, renameList, updateListPosition, deleteList } from '@/api/lists';
-import { getCardsByBoard, updateCardPosition, createCardInList } from '@/api/cards';
+import { getListsByBoard, createList, renameList, updateListPosition, deleteList, moveListToBoard } from '@/api/lists';
+import { getCardsByBoard, updateCardPosition, createCardInList, moveCardToBoard } from '@/api/cards';
+import { getBoards } from '@/api/boards';
+import { useAuth } from '@/contexts/AuthContext';
 import SortableList from './SortableList';
 import { 
   DndContext, 
@@ -21,6 +23,7 @@ type ListDragData = { type: 'list'; listId: string };
 
 export default function Board() {
   const { boardId } = useParams();
+  const { user } = useAuth();
 
   const listsQuery = useQuery({
     queryKey: ['lists', boardId],
@@ -32,6 +35,13 @@ export default function Board() {
     queryKey: ['cards', boardId],
     queryFn: () => getCardsByBoard(boardId!),
     enabled: !!boardId,
+  });
+
+  // Get all boards for move functionality
+  const boardsQuery = useQuery({
+    queryKey: ['boards', user?.id],
+    queryFn: () => user?.id ? getBoards(user.id) : Promise.resolve([]),
+    enabled: !!user?.id,
   });
 
   const queryClient = useQueryClient();
@@ -99,6 +109,34 @@ export default function Board() {
     }
   });
 
+  const moveCardMutation = useMutation({
+    mutationFn: ({ cardId, targetBoardId, targetListId }: { cardId: string; targetBoardId: string; targetListId?: string }) =>
+      moveCardToBoard(cardId, targetBoardId, targetListId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cards', boardId] });
+      queryClient.invalidateQueries({ queryKey: ['boards', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['lists'] });
+      queryClient.invalidateQueries({ queryKey: ['cards'] });
+    },
+    onError: (error) => {
+      console.error('Failed to move card:', error);
+    }
+  });
+
+  const moveListMutation = useMutation({
+    mutationFn: ({ listId, targetBoardId }: { listId: string; targetBoardId: string }) =>
+      moveListToBoard(listId, targetBoardId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['lists', boardId] });
+      queryClient.invalidateQueries({ queryKey: ['boards', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['lists'] });
+      queryClient.invalidateQueries({ queryKey: ['cards'] });
+    },
+    onError: (error) => {
+      console.error('Failed to move list:', error);
+    }
+  });
+
   React.useEffect(() => {
     const onToggle = (e: Event) => setModalOpen(Boolean((e as CustomEvent).detail));
     window.addEventListener('card-modal-toggle', onToggle as any);
@@ -140,6 +178,15 @@ export default function Board() {
   }
 
   const lists = (listsQuery.data ?? []) as ListRow[];
+
+  // Move handlers
+  const handleMoveCardToBoard = (cardId: string, targetBoardId: string, targetListId: string) => {
+    moveCardMutation.mutate({ cardId, targetBoardId, targetListId });
+  };
+
+  const handleMoveListToBoard = (listId: string, targetBoardId: string) => {
+    moveListMutation.mutate({ listId, targetBoardId });
+  };
 
   const onDragStart = (evt: any) => {
     const t = (evt.active.data.current as any)?.type as 'card' | 'list' | undefined;
@@ -213,31 +260,30 @@ export default function Board() {
     } else if (activeType === 'list') {
       // Handle list reordering
       const allLists = (queryClient.getQueryData(['lists', boardId]) as ListRow[]) ?? [];
-      const overIndex = allLists.findIndex((l) => l.id === over.id);
       const activeIndex = allLists.findIndex((l) => l.id === active.id);
+      const overIndex = allLists.findIndex((l) => l.id === over.id);
       
-      if (overIndex === -1 || activeIndex === -1) return;
+      if (overIndex === -1 || activeIndex === -1 || overIndex === activeIndex) return;
 
-      // Calculate new position for the moved list
-      let newPosition: number;
-      if (overIndex === 0) {
-        // Moving to first position
-        newPosition = (allLists[0]?.position ?? 1000) / 2;
-      } else if (overIndex === allLists.length - 1) {
-        // Moving to last position
-        newPosition = (allLists[allLists.length - 1]?.position ?? 0) + 1000;
-      } else {
-        // Moving between lists
-        const prev = overIndex > activeIndex ? allLists[overIndex]?.position : allLists[overIndex - 1]?.position;
-        const next = overIndex > activeIndex ? allLists[overIndex + 1]?.position : allLists[overIndex]?.position;
-        newPosition = ((prev ?? 0) + (next ?? (prev ?? 0) + 2000)) / 2;
-      }
+      // Reorder the lists array
+      const reorderedLists = [...allLists];
+      const [movedList] = reorderedLists.splice(activeIndex, 1);
+      reorderedLists.splice(overIndex, 0, movedList);
+
+      // Update positions for all lists based on their new order
+      const positionPromises = reorderedLists.map((list, index) => {
+        const newPosition = (index + 1) * 1000;
+        if (list.position !== newPosition) {
+          return updateListPosition(list.id, newPosition);
+        }
+        return Promise.resolve();
+      });
 
       try {
-        await updateListPosition(String(active.id), newPosition);
+        await Promise.all(positionPromises);
         await queryClient.invalidateQueries({ queryKey: ['lists', boardId] });
       } catch (error) {
-        console.error('Failed to move list:', error);
+        console.error('Failed to reorder lists:', error);
       }
     }
   };
@@ -261,6 +307,10 @@ export default function Board() {
                 onUpdateList={handleUpdateList}
                 onCreateCard={handleCreateCard}
                 onDeleteList={handleDeleteList}
+                onMoveCardToBoard={handleMoveCardToBoard}
+                onMoveListToBoard={handleMoveListToBoard}
+                boards={boardsQuery.data || []}
+                currentBoardId={boardId!}
               />
             ))}
             

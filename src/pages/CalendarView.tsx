@@ -77,6 +77,23 @@ export default function CalendarView() {
     enabled: boardsToShow.length > 0,
   });
 
+  // Get board color (you can customize this)
+  const getBoardColor = (boardId: string): string => {
+    const colors = [
+      '#3B82F6', // blue
+      '#10B981', // emerald
+      '#F59E0B', // amber
+      '#EF4444', // red
+      '#8B5CF6', // violet
+      '#06B6D4', // cyan
+      '#F97316', // orange
+      '#84CC16', // lime
+    ];
+    
+    const index = boards.findIndex(b => b.id === boardId);
+    return colors[index % colors.length];
+  };
+
   // Convert cards to calendar events
   const events: CalendarEvent[] = React.useMemo(() => {
     if (!allCardData.data) return [];
@@ -137,22 +154,6 @@ export default function CalendarView() {
     
     return allEvents;
   }, [boardsToShow, allCardData.data]);
-
-  const getBoardColor = (boardId: string): string => {
-    const colors = [
-      '#3B82F6', // blue
-      '#10B981', // emerald
-      '#F59E0B', // amber
-      '#EF4444', // red
-      '#8B5CF6', // violet
-      '#06B6D4', // cyan
-      '#F97316', // orange
-      '#84CC16', // lime
-    ];
-    
-    const index = boards.findIndex(b => b.id === boardId);
-    return colors[index % colors.length];
-  };
 
   const eventStyleGetter = (event: CalendarEvent) => {
     return {

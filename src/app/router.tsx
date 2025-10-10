@@ -13,6 +13,8 @@ import BoardMap from '@/pages/BoardMap';
 import WorkspacePage from '@/pages/WorkspacePage';
 import ThemesPage from '@/pages/ThemesPage';
 import AdminPanel from '@/pages/AdminPanel';
+import MasterCalendarView from '@/pages/MasterCalendarView';
+import ArchivePage from '@/pages/ArchivePage';
 
 const basePath = import.meta.env.PROD ? '/Project-managment-app' : '';
 
@@ -33,6 +35,8 @@ export const router = createBrowserRouter([
         children: [
           { index: true, element: <HomePage /> },
           { path: 'calendar', element: <CalendarView /> },
+          { path: 'master-calendar', element: <MasterCalendarView /> },
+          { path: 'archive', element: <ArchivePage /> },
           { path: 'themes', element: <ThemesPage /> },
           { path: 'admin', element: <AdminPanel /> },
           { path: 'workspace/:workspaceId', element: <WorkspacePage /> },

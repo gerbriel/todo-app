@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { X, Plus, GripVertical, Trash2 } from 'lucide-react'
+import { X, Plus, GripVertical, Trash2, FileText, CheckSquare, Target } from 'lucide-react'
 import {
   DndContext,
   closestCenter,
@@ -19,6 +19,20 @@ import {
 import {
   CSS,
 } from '@dnd-kit/utilities'
+
+// Helper function to get icon for section type
+const getSectionIcon = (type: string) => {
+  switch (type) {
+    case 'text':
+      return <FileText className="w-3 h-3" />
+    case 'checklist':
+      return <CheckSquare className="w-3 h-3" />
+    case 'notes':
+      return <Target className="w-3 h-3" />
+    default:
+      return <FileText className="w-3 h-3" />
+  }
+}
 
 // Simple types for our new card system
 interface CardSection {
@@ -88,13 +102,18 @@ function DraggableSection({ section, onUpdate, onDelete }: {
         {/* Section Content */}
         <div className="flex-1">
           <div className="flex items-center justify-between mb-2">
-            <input
-              type="text"
-              value={section.title}
-              onChange={(e) => onUpdate(section.id, { title: e.target.value })}
-              className="font-medium text-gray-900 bg-transparent border-none outline-none focus:bg-gray-50 px-2 py-1 rounded flex-1 mr-2"
-              placeholder="Section title"
-            />
+            <div className="flex items-center gap-2 flex-1 mr-2">
+              <span className="text-gray-400 flex-shrink-0">
+                {getSectionIcon(section.type)}
+              </span>
+              <input
+                type="text"
+                value={section.title}
+                onChange={(e) => onUpdate(section.id, { title: e.target.value })}
+                className="font-medium text-gray-900 bg-transparent border-none outline-none focus:bg-gray-50 px-2 py-1 rounded flex-1"
+                placeholder="Section title"
+              />
+            </div>
             <button
               onClick={() => onDelete(section.id)}
               className="text-gray-400 hover:text-red-500 p-1 rounded transition-colors"
@@ -113,7 +132,8 @@ function DraggableSection({ section, onUpdate, onDelete }: {
           />
           
           <div className="mt-3 flex items-center justify-between">
-            <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+            <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full flex items-center gap-1">
+              {getSectionIcon(section.type)}
               {section.type} • Position {section.position}
             </span>
             <span className="text-xs text-gray-400">
@@ -132,21 +152,21 @@ export function SimpleCardModal({ card, isOpen, onClose, onSave }: SimpleCardMod
   const [sections, setSections] = useState<CardSection[]>([
     {
       id: '1',
-      title: '📝 Getting Started',
+      title: 'Getting Started',
       content: 'Welcome! This is a draggable section. Try dragging it using the ≡ handle on the left.',
       type: 'text',
       position: 1
     },
     {
       id: '2',
-      title: '✅ Task List',
+      title: 'Task List',
       content: 'You can create different types of sections:\n• Text sections for notes\n• Checklists for tasks\n• Notes for longer content',
       type: 'checklist',
       position: 2
     },
     {
       id: '3',
-      title: '🎯 Try This',
+      title: 'Try This',
       content: 'Drag this section up or down to reorder it. The position updates in real-time!',
       type: 'notes',
       position: 3

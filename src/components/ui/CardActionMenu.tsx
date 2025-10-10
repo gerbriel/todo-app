@@ -89,16 +89,21 @@ export function CardActionMenu({
               )}
               
               {!isArchived && onMoveToBoard && otherBoards.length > 0 && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setShowMoveMenu(true)
-                  }}
-                  className="flex items-center space-x-2 w-full px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                >
-                  <MoveHorizontal className="w-4 h-4" />
-                  <span>Move to Board</span>
-                </button>
+                <div className="relative">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setShowMoveMenu(!showMoveMenu)
+                    }}
+                    className="flex items-center space-x-2 w-full px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 justify-between"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <MoveHorizontal className="w-4 h-4" />
+                      <span>Move</span>
+                    </div>
+                    <span className="text-xs">›</span>
+                  </button>
+                </div>
               )}
               
               {!isArchived && onArchive && (

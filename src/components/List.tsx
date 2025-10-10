@@ -4,8 +4,9 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom';
 import { Plus, MoreHorizontal } from 'lucide-react';
-import type { CardRow, ListRow } from '@/types/dto';
+import type { CardRow, ListRow, BoardRow } from '@/types/dto';
 import SortableCard from './SortableCard';
+import ListContextMenu from './list/ListContextMenu';
 import { createCardInList } from '@/api/cards';
 
 interface ListProps {
@@ -18,6 +19,10 @@ interface ListProps {
   onUpdateList?: (id: string, data: { name?: string; position?: number }) => void;
   onCreateCard?: (listId: string, title: string) => void;
   onDeleteList?: (listId: string) => void;
+  onMoveCardToBoard?: (cardId: string, boardId: string, listId: string) => void;
+  onMoveListToBoard?: (listId: string, boardId: string) => void;
+  boards?: BoardRow[];
+  currentBoardId?: string;
 }
 
 export default function List({ 
@@ -28,7 +33,11 @@ export default function List({
   dragListeners,
   onUpdateList,
   onCreateCard,
-  onDeleteList
+  onDeleteList,
+  onMoveCardToBoard,
+  onMoveListToBoard,
+  boards,
+  currentBoardId
 }: ListProps) {
   const { boardId } = useParams();
   const queryClient = useQueryClient();
@@ -140,33 +149,16 @@ export default function List({
         </button>
 
         {showContextMenu && (
-          <div className="absolute right-0 top-8 bg-white dark:bg-gray-700 rounded-md shadow-lg border border-gray-200 dark:border-gray-600 py-1 z-10">
-            <button
-              onClick={() => {
-                setIsEditingTitle(true);
-                setEditingTitle(title);
-                setShowContextMenu(false);
-              }}
-              className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600"
-            >
-              Rename
-            </button>
-            <button
-              onClick={() => {
-                if (onDeleteList) onDeleteList(listId);
-                setShowContextMenu(false);
-              }}
-              className="w-full px-4 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-600"
-            >
-              Delete
-            </button>
-            <button
-              onClick={() => setShowContextMenu(false)}
-              className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600"
-            >
-              Cancel
-            </button>
-          </div>
+          <ListContextMenu 
+            list={{
+              id: listId,
+              board_id: boardId || '',
+              name: title,
+              position: 0,
+            }}
+            onClose={() => setShowContextMenu(false)}
+            isOpen={showContextMenu}
+          />
         )}
       </div>
 

@@ -43,11 +43,13 @@ let sessionBoards: BoardRow[] = loadBoards();
 export async function getBoards(userId: string): Promise<BoardRow[]> {
   console.log('Getting boards for user:', userId);
   
-  // Use localStorage only - no Supabase calls to avoid 400 errors
-  const boards = sessionBoards.map(board => ({
-    ...board,
-    workspace_id: userId,
-  }));
+  // Use localStorage only - filter out archived boards by default
+  const boards = sessionBoards
+    .filter(board => board.archived !== true)
+    .map(board => ({
+      ...board,
+      workspace_id: userId,
+    }));
   
   // Always add the archive board
   const allBoards = [...boards, { ...ARCHIVE_BOARD, workspace_id: userId }];
@@ -75,21 +77,50 @@ export async function createBoard(userId: string, name: string): Promise<BoardRo
 }
 
 export async function archiveBoard(boardId: string): Promise<void> {
-  // Prevent deletion of the archive board
+  // Prevent archiving of the archive board
   if (boardId === ARCHIVE_BOARD.id) {
-    console.warn('Cannot delete the Archive board');
+    console.warn('Cannot archive the Archive board');
     return;
   }
 
   console.log('Archiving board:', boardId);
 
-  // Remove from localStorage only - no Supabase to avoid errors
+  // Mark as archived in localStorage - no Supabase to avoid errors
   const boardIndex = sessionBoards.findIndex(board => board.id === boardId);
   if (boardIndex !== -1) {
-    sessionBoards.splice(boardIndex, 1);
+    sessionBoards[boardIndex] = {
+      ...sessionBoards[boardIndex],
+      archived: true,
+      updated_at: new Date().toISOString()
+    };
     saveBoards(sessionBoards);
     console.log('Board archived in localStorage');
   }
+}
+
+export async function unarchiveBoard(boardId: string): Promise<void> {
+  console.log('Unarchiving board:', boardId);
+
+  // Mark as unarchived in localStorage
+  const boardIndex = sessionBoards.findIndex(board => board.id === boardId);
+  if (boardIndex !== -1) {
+    sessionBoards[boardIndex] = {
+      ...sessionBoards[boardIndex],
+      archived: false,
+      updated_at: new Date().toISOString()
+    };
+    saveBoards(sessionBoards);
+    console.log('Board unarchived in localStorage');
+  }
+}
+
+export async function getArchivedBoards(userId: string): Promise<BoardRow[]> {
+  console.log('Getting archived boards for user:', userId);
+  
+  // Get archived boards from localStorage
+  const boards = sessionBoards.filter(board => board.archived === true);
+  
+  return boards;
 }
 
 export async function updateBoardName(boardId: string, name: string): Promise<void> {
@@ -101,6 +132,19 @@ export async function updateBoardName(boardId: string, name: string): Promise<vo
     sessionBoards[boardIndex].name = name;
     saveBoards(sessionBoards);
     console.log('Board name updated in localStorage');
+  }
+}
+
+export async function updateBoardPosition(boardId: string, position: number): Promise<void> {
+  console.log('Updating board position:', boardId, 'to:', position);
+
+  // Update localStorage only - no Supabase to avoid errors
+  const boardIndex = sessionBoards.findIndex(board => board.id === boardId);
+  if (boardIndex !== -1) {
+    sessionBoards[boardIndex].position = position;
+    sessionBoards[boardIndex].updated_at = new Date().toISOString();
+    saveBoards(sessionBoards);
+    console.log('Board position updated in localStorage');
   }
 }
 
