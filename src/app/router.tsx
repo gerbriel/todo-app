@@ -17,7 +17,7 @@ import MasterCalendarView from '@/pages/MasterCalendarView';
 import AllMapsView from '@/pages/AllMapsView';
 import ArchivePage from '@/pages/ArchivePage';
 
-const basePath = import.meta.env.PROD ? '/Project-managment-app' : '';
+const basePath = import.meta.env.PROD ? '/todo-app' : '';
 
 export const router = createBrowserRouter([
   // All routes wrapped with AppLayout (which includes AuthProvider)
