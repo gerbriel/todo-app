@@ -294,10 +294,10 @@ export default function Board() {
   };
 
   return (
-    <div className="h-full overflow-auto">
+    <div className="h-full w-full overflow-x-auto overflow-y-hidden">
       <DndContext sensors={sensors} onDragStart={onDragStart} onDragOver={onDragOver} onDragEnd={onDragEnd} onDragCancel={onDragCancel}>
         <SortableContext items={lists.map((l) => l.id)} strategy={horizontalListSortingStrategy}>
-          <div className={`flex gap-4 min-w-max items-stretch relative p-4 ${modalOpen ? 'pointer-events-none select-none' : ''}`}>
+          <div className={`flex gap-4 min-w-max items-start p-4 h-full ${modalOpen ? 'pointer-events-none select-none' : ''}`}>
             {lists.map((l) => (
               <SortableList 
                 key={l.id}

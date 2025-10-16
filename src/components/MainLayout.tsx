@@ -18,7 +18,7 @@ export default function MainLayout() {
       <div className="flex-1 flex flex-col overflow-hidden">
         <Topbar onToggleViews={() => setShowViewsPanel(!showViewsPanel)} />
         
-        <main className="flex-1 overflow-hidden">
+        <main className="flex-1 overflow-auto">
           <Outlet />
         </main>
 
