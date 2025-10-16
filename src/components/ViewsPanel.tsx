@@ -16,14 +16,13 @@ export default function ViewsPanel({ isOpen, onClose }: ViewsPanelProps) {
     { id: 'board', name: 'Board', icon: '📋', path: boardId ? `/b/${boardId}/board` : '/' },
     { id: 'table', name: 'Table', icon: '📊', path: boardId ? `/b/${boardId}/table` : '/table' },
     { id: 'calendar', name: 'Calendar', icon: '📅', path: boardId ? `/b/${boardId}/calendar` : '/calendar' },
-    { id: 'dashboard', name: 'Dashboard', icon: '📈', path: boardId ? `/b/${boardId}/dashboard` : '/dashboard' },
     { id: 'timeline', name: 'Timeline', icon: '⏰', path: boardId ? `/b/${boardId}/timeline` : '/timeline' },
     { id: 'map', name: 'Map', icon: '🗺️', path: boardId ? `/b/${boardId}/map` : '/map' },
   ];
 
   const masterViews = [
     { id: 'master-calendar', name: 'Master Calendar', icon: '📅', path: '/master-calendar', description: 'View all boards in one calendar' },
-    { id: 'all-boards', name: 'All Boards', icon: '📋', path: '/', description: 'View all your boards' },
+    { id: 'all-maps', name: 'All Maps', icon: '�️', path: '/all-maps', description: 'View all pinned locations from all boards' },
   ];
 
   const currentView = views.find(view => location.pathname === view.path) || 

@@ -3,10 +3,57 @@
 @tailwind components;
 @tailwind utilities;
 
+/* CSS Custom Properties for theming */
+:root {
+  /* Default theme colors */
+  --color-primary: #3b82f6;
+  --color-secondary: #6b7280;
+  --color-accent: #10b981;
+  --color-background: #ffffff;
+  --color-cardBackground: #f9fafb;
+  --color-listBackground: #f3f4f6;
+  --color-text: #111827;
+  --color-textSecondary: #6b7280;
+  --color-textMuted: #9ca3af;
+  --color-textInverted: #ffffff;
+  --color-border: #d1d5db;
+  --color-borderLight: #e5e7eb;
+  --color-borderDark: #9ca3af;
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
+  --color-info: #3b82f6;
+  --color-hover: #f3f4f6;
+  --color-focus: #dbeafe;
+  --color-disabled: #f3f4f6;
+  --color-shadow: rgba(0, 0, 0, 0.1);
+  --color-overlay: rgba(0, 0, 0, 0.5);
+  --color-cardText: #111827;
+  --color-cardTitle: #1f2937;
+  --color-cardSubtitle: #6b7280;
+  --color-cardBorder: #e5e7eb;
+  --color-listText: #111827;
+  --color-listTitle: #1f2937;
+  --color-listBorder: #d1d5db;
+  --color-boardBackground: #f9fafb;
+  --color-boardText: #111827;
+  --color-boardTitle: #1f2937;
+  --color-navBackground: #ffffff;
+  --color-navText: #374151;
+  --color-navHover: #f3f4f6;
+  --color-navActive: #3b82f6;
+  --color-buttonPrimary: #3b82f6;
+  --color-buttonPrimaryText: #ffffff;
+  --color-buttonSecondary: #f3f4f6;
+  --color-buttonSecondaryText: #374151;
+  --color-buttonDanger: #ef4444;
+  --color-buttonDangerText: #ffffff;
+}
+
 body {
   font-family: 'Inter', system-ui, sans-serif;
-  background-color: #111827;
-  color: #f3f4f6;
+  background-color: var(--color-background, #ffffff);
+  color: var(--color-text, #111827);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -23,65 +70,68 @@ body {
 }
 
 .btn-primary {
-  background-color: #0ea5e9;
-  color: white;
+  background-color: var(--color-buttonPrimary);
+  color: var(--color-buttonPrimaryText);
 }
 
 .btn-primary:hover {
-  background-color: #0284c7;
+  background-color: var(--color-primary);
+  opacity: 0.9;
 }
 
 .btn-secondary {
-  background-color: #374151;
-  color: #f3f4f6;
+  background-color: var(--color-buttonSecondary);
+  color: var(--color-buttonSecondaryText);
 }
 
 .btn-secondary:hover {
-  background-color: #4b5563;
+  background-color: var(--color-hover);
 }
 
 .btn-danger {
-  background-color: #dc2626;
-  color: white;
+  background-color: var(--color-buttonDanger);
+  color: var(--color-buttonDangerText);
 }
 
 .btn-danger:hover {
-  background-color: #b91c1c;
+  background-color: var(--color-error);
+  opacity: 0.9;
 }
 
 /* Card styles */
 .card {
-  background-color: #1f2937;
+  background-color: var(--color-cardBackground);
+  color: var(--color-cardText);
   border-radius: 0.5rem;
-  border: 1px solid #374151;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--color-cardBorder);
+  box-shadow: 0 1px 3px 0 var(--color-shadow);
 }
 
 /* Input styles */
 .input {
   width: 100%;
   padding: 0.5rem 0.75rem;
-  background-color: #1f2937;
-  border: 1px solid #4b5563;
+  background-color: var(--color-background);
+  border: 1px solid var(--color-border);
   border-radius: 0.5rem;
-  color: #f3f4f6;
+  color: var(--color-text);
 }
 
 .input::placeholder {
-  color: #9ca3af;
+  color: var(--color-textMuted);
 }
 
 .input:focus {
-  border-color: #0ea5e9;
+  border-color: var(--color-primary);
   outline: none;
-  box-shadow: 0 0 0 1px #0ea5e9;
+  box-shadow: 0 0 0 1px var(--color-primary);
 }
 
 /* Modal styles */
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: var(--color-overlay);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -89,9 +139,10 @@ body {
 }
 
 .modal {
-  background-color: #1f2937;
+  background-color: var(--color-background);
+  color: var(--color-text);
   border-radius: 0.5rem;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 20px 25px -5px var(--color-shadow);
   max-width: 32rem;
   width: 100%;
   margin: 1rem;
@@ -105,16 +156,16 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background-color: #1f2937;
+  background-color: var(--color-listBackground);
 }
 
 ::-webkit-scrollbar-thumb {
-  background-color: #4b5563;
+  background-color: var(--color-border);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background-color: #6b7280;
+  background-color: var(--color-borderDark);
 }
 
 /* Drag and drop styles */

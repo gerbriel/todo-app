@@ -19,6 +19,8 @@ import {
   Activity,
   Plus
 } from 'lucide-react';
+import ThemeManager from '../components/admin/ThemeManager';
+import UserManager from '../components/admin/UserManager';
 
 interface MockUser {
   id: string;
@@ -351,152 +353,11 @@ const AdminPanel: React.FC = () => {
         )}
 
         {activeTab === 'users' && (
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">User Management</h3>
-              <button
-                onClick={() => setShowAddUser(true)}
-                className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Add User
-              </button>
-            </div>
-
-            {showAddUser && (
-              <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                <h4 className="text-md font-medium text-gray-900 dark:text-white mb-3">Add New User</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <input
-                    type="email"
-                    placeholder="Email address"
-                    value={newUserEmail}
-                    onChange={(e) => setNewUserEmail(e.target.value)}
-                    className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                  />
-                  <select
-                    value={newUserRole}
-                    onChange={(e) => setNewUserRole(e.target.value as 'admin' | 'user' | 'viewer')}
-                    className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                  >
-                    <option value="user">User</option>
-                    <option value="admin">Admin</option>
-                    <option value="viewer">Viewer</option>
-                  </select>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={addNewUser}
-                      className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
-                    >
-                      Add
-                    </button>
-                    <button
-                      onClick={() => setShowAddUser(false)}
-                      className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-600">
-                <thead className="bg-gray-50 dark:bg-gray-700">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">User</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Role</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Permissions</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
-                  {users.map((user) => (
-                    <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div>
-                          <div className="text-sm font-medium text-gray-900 dark:text-white">{user.email}</div>
-                          <div className="text-sm text-gray-500 dark:text-gray-400">
-                            Last active: {user.lastActivity ? new Date(user.lastActivity).toLocaleDateString() : 'Never'}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <select
-                          value={user.role}
-                          onChange={(e) => updateUserRole(user.id, e.target.value as 'admin' | 'user' | 'viewer')}
-                          className="text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                        >
-                          <option value="admin">Admin</option>
-                          <option value="user">User</option>
-                          <option value="viewer">Viewer</option>
-                        </select>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex flex-wrap gap-1">
-                          {user.permissions.map((permission) => (
-                            <span
-                              key={permission}
-                              className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
-                            >
-                              {permission}
-                            </span>
-                          ))}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          user.isActive 
-                            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                            : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                        }`}>
-                          {user.isActive ? 'Active' : 'Inactive'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex space-x-2">
-                          <button
-                            onClick={() => toggleUserStatus(user.id)}
-                            className={`${
-                              user.isActive ? 'text-red-600 hover:text-red-900' : 'text-green-600 hover:text-green-900'
-                            }`}
-                          >
-                            {user.isActive ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
-                          </button>
-                          <button
-                            onClick={() => deleteUser(user.id)}
-                            className="text-red-600 hover:text-red-900"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <UserManager />
         )}
 
         {activeTab === 'themes' && (
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Theme Management</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {themes.map((theme) => (
-                <div key={theme.id} className="border border-gray-200 dark:border-gray-600 rounded-lg p-4">
-                  <h4 className="font-medium text-gray-900 dark:text-white">{theme.name}</h4>
-                  <div className="mt-2 flex space-x-2">
-                    <div className="w-6 h-6 rounded" style={{ backgroundColor: theme.primary }}></div>
-                    <div className="w-6 h-6 rounded" style={{ backgroundColor: theme.secondary }}></div>
-                    <div className="w-6 h-6 rounded border" style={{ backgroundColor: theme.background }}></div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          <ThemeManager />
         )}
 
         {activeTab === 'settings' && (

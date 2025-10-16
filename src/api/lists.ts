@@ -60,6 +60,13 @@ const DEFAULT_LISTS: ListRow[] = [
     position: 2000,
     created_at: new Date().toISOString(),
   },
+  {
+    id: 'archive-list-3',
+    board_id: 'archive-board',
+    name: 'Archived Boards',
+    position: 3000,
+    created_at: new Date().toISOString(),
+  },
 ];
 
 // Persistent storage functions
@@ -90,15 +97,12 @@ let demoLists: ListRow[] = loadLists();
 
 export async function getListsByBoard(boardId: string): Promise<ListRow[]> {
   // Always use mock mode for now to avoid database errors
-  console.log('Getting lists for board:', boardId);
   const filteredLists = demoLists.filter(list => list.board_id === boardId);
-  console.log('Found', filteredLists.length, 'lists for board:', boardId);
   return filteredLists;
 }
 
 export async function createList(boardId: string, name: string): Promise<ListRow> {
   // Always use mock mode for now to avoid database errors
-  console.log('Creating list for board:', boardId, 'with name:', name);
   const position = Math.max(...demoLists.map(l => l.position), 0) + 1000;
   const newList: ListRow = {
     id: `list-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
@@ -109,13 +113,11 @@ export async function createList(boardId: string, name: string): Promise<ListRow
   };
   demoLists.push(newList);
   saveLists(demoLists); // Persist to localStorage
-  console.log('List created successfully:', newList.id, 'for board:', boardId);
   return newList;
 }
 
 export async function moveListToBoard(listId: string, targetBoardId: string): Promise<void> {
   // Always use mock mode for now
-  console.log('Moving list to board:', listId, targetBoardId);
   const listIndex = demoLists.findIndex(list => list.id === listId);
   if (listIndex >= 0) {
     demoLists[listIndex].board_id = targetBoardId;

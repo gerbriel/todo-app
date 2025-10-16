@@ -1,49 +1,35 @@
 import { useState, useEffect } from 'react';
-import { X, Edit2, Calendar, User, Tag, FileText, Check, Move, Paperclip, MapPin, Users, Archive, Copy, Sparkles } from 'lucide-react';
+import { X, Edit2, Calendar, User, Tag, FileText, Check, Move, Paperclip, MapPin, Users, Archive, Copy, Sparkles, Clock, Upload, Download, Eye } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getBoards } from '@/api/boards';
 import { 
   moveCardToBoard, 
   updateCard,
   addLabelToCard,
-  removeLabelFromCard,
+  removeLabelFromCardById,
   addChecklistToCard,
-  removeChecklistFromCard,
-  addChecklistItem,
-  toggleChecklistItem,
-  removeChecklistItem,
-  updateChecklistItemText,
-  addCommentToCard,
-  getCardComments,
-  removeCommentFromCard,
   addAttachmentToCard,
-  removeAttachmentFromCard
+  removeAttachmentFromCard,
+  assignMemberToCard,
+  assignMemberToChecklistItem,
+  setChecklistItemDueDate,
+  setChecklistItemStartDate,
+  addLabelToChecklistItem,
+  removeLabelFromChecklistItem,
+  getAvailableLabelsForChecklistItems,
+  addChecklistItem,
+  removeChecklistItem,
+  toggleChecklistItem,
+  removeChecklistFromCard
 } from '@/api/cards';
 import type { CardRow, BoardRow } from '@/types/dto';
 import AIAdCopyManager from './AIAdCopyManager';
+import ActivityFeed from './ActivityFeed';
 import AdvancedLabelManager from '../label/AdvancedLabelManager';
 import LabelCreationModal from '../label/LabelCreationModal';
-
-interface CardLabel {
-  id: string;
-  name: string;
-  color: string;
-}
-
-interface ChecklistItem {
-  id: string;
-  text: string;
-  completed: boolean;
-}
-
-interface CardAttachment {
-  id: string;
-  name: string;
-  type: string;
-  size: number;
-  url: string;
-  uploadedAt: string;
-}
+import ChecklistModule from '../checklist/ChecklistModule';
+import UserDropdown from '../ui/UserDropdown';
+import FilePreview from '../ui/FilePreview';
 
 interface CardComment {
   id: string;
@@ -68,31 +54,10 @@ export default function CardEditModal({ card, isOpen, onClose, onSave }: CardEdi
     date_end: card.date_end || ''
   });
 
-  // Enhanced state for comprehensive card features
-  const [labels] = useState<CardLabel[]>([
-    { id: '1', name: 'High Priority', color: 'bg-red-500' },
-    { id: '2', name: 'In Review', color: 'bg-yellow-500' },
-    { id: '3', name: 'Completed', color: 'bg-green-500' },
-  ]);
-  
-  const [selectedLabels, setSelectedLabels] = useState<string[]>([]);
-  
-  const [checklist, setChecklist] = useState<ChecklistItem[]>([
-    { id: '1', text: 'Review requirements', completed: true },
-    { id: '2', text: 'Complete implementation', completed: false },
-    { id: '3', text: 'Test functionality', completed: false },
-  ]);
-
-  const [attachments] = useState<CardAttachment[]>([
-    { 
-      id: '1', 
-      name: 'design-mockup.png', 
-      type: 'image/png', 
-      size: 245760, 
-      url: '#', 
-      uploadedAt: '2025-01-05T10:30:00Z' 
-    },
-  ]);
+  // Initialize selected labels from card data
+  const [selectedLabels, setSelectedLabels] = useState<string[]>(
+    card.card_labels?.map(cl => cl.label_id) || []
+  );
 
   const [comments, setComments] = useState<CardComment[]>([
     {
@@ -116,17 +81,32 @@ export default function CardEditModal({ card, isOpen, onClose, onSave }: CardEdi
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [showArchiveModal, setShowArchiveModal] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
+  const [previewFile, setPreviewFile] = useState<{
+    id: string;
+    name: string;
+    url: string;
+    mime: string;
+    size?: number;
+  } | null>(null);
   
   // Form states
   const [memberForm, setMemberForm] = useState({ name: '', email: '' });
-  const [labelForm, setLabelForm] = useState({ name: '', color: '#3B82F6' });
   const [checklistForm, setChecklistForm] = useState({ title: '' });
   const [datesForm, setDatesForm] = useState({ 
     start_date: formData.date_start || '', 
     end_date: formData.date_end || '' 
   });
-  const [attachmentForm, setAttachmentForm] = useState({ name: '', url: '' });
-  const [locationForm, setLocationForm] = useState({ address: '', coordinates: '' });
+  const [attachmentForm, setAttachmentForm] = useState({ name: '', url: '', file: null as File | null });
+  const [locationForm, setLocationForm] = useState({ 
+    address: card.location_address || '', 
+    coordinates: card.location_lat && card.location_lng ? `${card.location_lat}, ${card.location_lng}` : ''
+  });
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [availableChecklistLabels, setAvailableChecklistLabels] = useState<Array<{
+    id: string;
+    name: string;
+    color: string;
+  }>>([]);
 
   const queryClient = useQueryClient();
 
@@ -146,30 +126,30 @@ export default function CardEditModal({ card, isOpen, onClose, onSave }: CardEdi
   });
 
   const removeLabelMutation = useMutation({
-    mutationFn: (labelId: string) => removeLabelFromCard(card.id, labelId),
+    mutationFn: (labelId: string) => removeLabelFromCardById(card.id, labelId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cards', card.board_id] });
     }
   });
 
-  const addChecklistItemMutation = useMutation({
-    mutationFn: ({ checklistId, text }: { checklistId: string; text: string }) => 
-      addChecklistItem(card.id, checklistId, text),
+  const addAttachmentMutation = useMutation({
+    mutationFn: (attachment: { name: string; url: string; mime: string; size: number }) => 
+      addAttachmentToCard(card.id, attachment),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cards', card.board_id] });
     }
   });
 
-  const toggleChecklistItemMutation = useMutation({
-    mutationFn: ({ checklistId, itemId }: { checklistId: string; itemId: string }) => 
-      toggleChecklistItem(card.id, checklistId, itemId),
+  const removeAttachmentMutation = useMutation({
+    mutationFn: (attachmentId: string) => removeAttachmentFromCard(card.id, attachmentId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cards', card.board_id] });
     }
   });
 
-  const addCommentMutation = useMutation({
-    mutationFn: (text: string) => addCommentToCard(card.id, text),
+  const addMemberMutation = useMutation({
+    mutationFn: (member: { name: string; email?: string; avatar?: string }) => 
+      assignMemberToCard(card.id, member),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cards', card.board_id] });
     }
@@ -179,13 +159,6 @@ export default function CardEditModal({ card, isOpen, onClose, onSave }: CardEdi
   const boardsQuery = useQuery({
     queryKey: ['boards', card.workspace_id],
     queryFn: () => getBoards(card.workspace_id),
-    enabled: isOpen,
-  });
-
-  // Get card comments
-  const commentsQuery = useQuery({
-    queryKey: ['card-comments', card.id],
-    queryFn: () => getCardComments(card.id),
     enabled: isOpen,
   });
 
@@ -205,6 +178,19 @@ export default function CardEditModal({ card, isOpen, onClose, onSave }: CardEdi
 
   const [isSaving, setIsSaving] = useState(false);
 
+  // Load available checklist labels
+  useEffect(() => {
+    const loadAvailableLabels = async () => {
+      try {
+        const labels = await getAvailableLabelsForChecklistItems();
+        setAvailableChecklistLabels(labels);
+      } catch (error) {
+        console.error('Failed to load available checklist labels:', error);
+      }
+    };
+    loadAvailableLabels();
+  }, []);
+
   // Handle Escape key to close modal
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -218,6 +204,16 @@ export default function CardEditModal({ card, isOpen, onClose, onSave }: CardEdi
       return () => document.removeEventListener('keydown', handleEscape);
     }
   }, [isOpen, isSaving, onClose]);
+
+  // Reset location form when modal opens
+  useEffect(() => {
+    if (showLocationModal) {
+      setLocationForm({
+        address: card.location_address || '',
+        coordinates: card.location_lat && card.location_lng ? `${card.location_lat}, ${card.location_lng}` : ''
+      });
+    }
+  }, [showLocationModal, card.location_address, card.location_lat, card.location_lng]);
 
   const handleSave = async () => {
     try {
@@ -234,33 +230,6 @@ export default function CardEditModal({ card, isOpen, onClose, onSave }: CardEdi
 
   const updateField = (fieldId: string, value: any) => {
     setFormData({ ...formData, [fieldId]: value });
-  };
-
-  // Helper functions for enhanced features
-  const toggleLabel = (labelId: string) => {
-    setSelectedLabels(prev => 
-      prev.includes(labelId) 
-        ? prev.filter(id => id !== labelId)
-        : [...prev, labelId]
-    );
-  };
-
-  const toggleChecklistItem = (itemId: string) => {
-    setChecklist(prev => prev.map(item => 
-      item.id === itemId 
-        ? { ...item, completed: !item.completed }
-        : item
-    ));
-  };
-
-  const addChecklistItem = (text: string) => {
-    if (text.trim()) {
-      setChecklist(prev => [...prev, {
-        id: Date.now().toString(),
-        text: text.trim(),
-        completed: false
-      }]);
-    }
   };
 
   const addComment = () => {
@@ -283,11 +252,6 @@ export default function CardEditModal({ card, isOpen, onClose, onSave }: CardEdi
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  const getChecklistProgress = () => {
-    const completed = checklist.filter(item => item.completed).length;
-    return checklist.length > 0 ? Math.round((completed / checklist.length) * 100) : 0;
-  };
-
   const handleBackdropClick = (e: React.MouseEvent) => {
     // Only close if clicking the backdrop, not the modal content, and not while saving
     if (e.target === e.currentTarget && !isSaving) {
@@ -295,17 +259,58 @@ export default function CardEditModal({ card, isOpen, onClose, onSave }: CardEdi
     }
   };
 
+  // Drag and drop handlers
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length > 0) {
+      const file = files[0];
+      const fileUrl = URL.createObjectURL(file);
+      
+      addAttachmentMutation.mutate({
+        name: file.name,
+        url: fileUrl,
+        mime: file.type || 'application/octet-stream',
+        size: file.size
+      });
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
     <div 
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
       onClick={handleBackdropClick}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
     >
       <div 
-        className="bg-white text-gray-900 rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+        className={`bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden relative
+          ${isDragOver ? 'ring-2 ring-blue-500 ring-opacity-50' : ''}`}
         onClick={(e) => e.stopPropagation()}
       >
+        {isDragOver && (
+          <div className="absolute inset-0 bg-blue-500 bg-opacity-10 flex items-center justify-center z-10 rounded-lg">
+            <div className="bg-white p-4 rounded-lg shadow-lg border-2 border-dashed border-blue-500">
+              <Upload className="w-8 h-8 text-blue-500 mx-auto mb-2" />
+              <p className="text-blue-600 font-medium">Drop file to upload</p>
+            </div>
+          </div>
+        )}
         {/* Header */}
         <div className="sticky top-0 bg-white text-gray-900 border-b px-6 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-4">
@@ -329,7 +334,7 @@ export default function CardEditModal({ card, isOpen, onClose, onSave }: CardEdi
                     : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
-                Activity ({comments.length})
+                Activity ({(card.activity?.length || 0) + comments.length})
               </button>
               <button
                 onClick={() => setActiveTab('ai-copy')}
@@ -379,20 +384,30 @@ export default function CardEditModal({ card, isOpen, onClose, onSave }: CardEdi
                     <Tag className="w-4 h-4" />
                     <span>Labels</span>
                   </label>
+                  {/* Display selected labels */}
                   <div className="flex flex-wrap gap-2">
-                    {labels.map((label) => (
-                      <button
-                        key={label.id}
-                        onClick={() => toggleLabel(label.id)}
-                        className={`px-3 py-1 rounded-full text-sm font-medium ${
-                          selectedLabels.includes(label.id)
-                            ? `${label.color} text-white`
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                        }`}
-                      >
-                        {label.name}
-                      </button>
-                    ))}
+                    {card.card_labels?.map((cardLabel) => {
+                      const label = cardLabel.labels;
+                      if (!label) return null;
+                      return (
+                        <div
+                          key={label.id}
+                          className="px-3 py-1 rounded-full text-sm font-medium text-white flex items-center space-x-2"
+                          style={{ backgroundColor: label.color }}
+                        >
+                          <span>{label.name}</span>
+                          <button
+                            onClick={() => removeLabelMutation.mutate(label.id)}
+                            className="hover:bg-black hover:bg-opacity-20 rounded-full p-0.5"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                    {(!card.card_labels || card.card_labels.length === 0) && (
+                      <p className="text-gray-500 text-sm">No labels assigned. Click "Labels" in the sidebar to add some.</p>
+                    )}
                   </div>
                 </div>
 
@@ -408,6 +423,30 @@ export default function CardEditModal({ card, isOpen, onClose, onSave }: CardEdi
                     className="w-full p-3 border rounded-lg resize-none text-gray-900"
                     rows={4}
                     placeholder="Add a more detailed description..."
+                  />
+                </div>
+
+                {/* Assigned Members */}
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                      <Users className="w-4 h-4" />
+                      <span>Assigned Members</span>
+                    </label>
+                  </div>
+                  <UserDropdown
+                    selectedUsers={card.assigned_members?.map(({ assigned_at, ...member }) => member) || []}
+                    onUsersChange={(users) => {
+                      // Add assigned_at timestamp to each user
+                      const usersWithTimestamp = users.map(user => ({
+                        ...user,
+                        assigned_at: new Date().toISOString()
+                      }));
+                      updateCardMutation.mutate({ assigned_members: usersWithTimestamp });
+                    }}
+                    placeholder="Assign team members..."
+                    maxUsers={10}
+                    compact={false}
                   />
                 </div>
 
@@ -439,47 +478,121 @@ export default function CardEditModal({ card, isOpen, onClose, onSave }: CardEdi
                   </div>
                 </div>
 
-                {/* Checklist */}
+                {/* Checklists */}
                 <div>
                   <div className="flex items-center justify-between mb-3">
                     <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
                       <Check className="w-4 h-4" />
-                      <span>Checklist</span>
-                      <span className="text-xs bg-gray-100 px-2 py-1 rounded">
-                        {getChecklistProgress()}% Complete
-                      </span>
+                      <span>Checklists</span>
                     </label>
                     <button
-                      onClick={() => {
-                        const text = prompt('Add checklist item:');
-                        if (text) addChecklistItem(text);
-                      }}
+                      onClick={() => setShowChecklistModal(true)}
                       className="text-blue-600 hover:text-blue-800 text-sm font-medium"
                     >
-                      + Add Item
+                      + Add Checklist
                     </button>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
-                    <div 
-                      className="bg-green-500 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${getChecklistProgress()}%` }}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    {checklist.map((item) => (
-                      <div key={item.id} className="flex items-center space-x-3 p-2 hover:bg-gray-50 rounded">
-                        <input
-                          type="checkbox"
-                          checked={item.completed}
-                          onChange={() => toggleChecklistItem(item.id)}
-                          className="w-4 h-4 text-green-600 rounded border-gray-300"
-                        />
-                        <span className={`flex-1 ${item.completed ? 'line-through text-gray-500' : ''}`}>
-                          {item.text}
-                        </span>
-                      </div>
+                  
+                  <div className="space-y-3">
+                    {card.checklists?.map((checklist) => (
+                      <ChecklistModule
+                        key={checklist.id}
+                        checklist={checklist}
+                        cardAssignedMembers={card.assigned_members || []}
+                        availableLabels={availableChecklistLabels}
+                        onChecklistUpdate={(updatedChecklist) => {
+                          const updatedChecklists = card.checklists?.map(cl => 
+                            cl.id === updatedChecklist.id ? updatedChecklist : cl
+                          );
+                          updateCardMutation.mutate({ checklists: updatedChecklists });
+                        }}
+                        onChecklistDelete={(checklistId) => {
+                          removeChecklistFromCard(card.id, checklistId);
+                          queryClient.invalidateQueries({ queryKey: ['cards', card.board_id] });
+                        }}
+                        onItemToggle={(itemId) => {
+                          const targetChecklist = card.checklists?.find(cl => 
+                            cl.checklist_items?.some(item => item.id === itemId)
+                          );
+                          if (targetChecklist) {
+                            toggleChecklistItem(card.id, targetChecklist.id, itemId);
+                            queryClient.invalidateQueries({ queryKey: ['cards', card.board_id] });
+                          }
+                        }}
+                        onItemUpdate={(itemId, updates) => {
+                          const updatedChecklists = card.checklists?.map(checklist => ({
+                            ...checklist,
+                            checklist_items: checklist.checklist_items?.map(item =>
+                              item.id === itemId ? { ...item, ...updates } : item
+                            )
+                          }));
+                          updateCardMutation.mutate({ checklists: updatedChecklists });
+                        }}
+                        onItemAdd={(checklistId: string, text: string) => {
+                          addChecklistItem(card.id, checklistId, text);
+                          queryClient.invalidateQueries({ queryKey: ['cards', card.board_id] });
+                        }}
+                        onItemDelete={(itemId) => {
+                          const targetChecklist = card.checklists?.find(cl => 
+                            cl.checklist_items?.some(item => item.id === itemId)
+                          );
+                          if (targetChecklist) {
+                            removeChecklistItem(card.id, targetChecklist.id, itemId);
+                            queryClient.invalidateQueries({ queryKey: ['cards', card.board_id] });
+                          }
+                        }}
+                        onItemAssign={(itemId, userId) => {
+                          const targetChecklist = card.checklists?.find(cl => 
+                            cl.checklist_items?.some(item => item.id === itemId)
+                          );
+                          if (targetChecklist) {
+                            assignMemberToChecklistItem(card.id, targetChecklist.id, itemId, userId);
+                            queryClient.invalidateQueries({ queryKey: ['cards', card.board_id] });
+                          }
+                        }}
+                        onItemDueDateSet={(itemId, dueDate) => {
+                          const targetChecklist = card.checklists?.find(cl => 
+                            cl.checklist_items?.some(item => item.id === itemId)
+                          );
+                          if (targetChecklist) {
+                            setChecklistItemDueDate(card.id, targetChecklist.id, itemId, dueDate);
+                            queryClient.invalidateQueries({ queryKey: ['cards', card.board_id] });
+                          }
+                        }}
+                        onItemStartDateSet={(itemId, startDate) => {
+                          const targetChecklist = card.checklists?.find(cl => 
+                            cl.checklist_items?.some(item => item.id === itemId)
+                          );
+                          if (targetChecklist) {
+                            setChecklistItemStartDate(card.id, targetChecklist.id, itemId, startDate);
+                            queryClient.invalidateQueries({ queryKey: ['cards', card.board_id] });
+                          }
+                        }}
+                        onItemLabelAdd={(itemId, labelId) => {
+                          const targetChecklist = card.checklists?.find(cl => 
+                            cl.checklist_items?.some(item => item.id === itemId)
+                          );
+                          if (targetChecklist) {
+                            addLabelToChecklistItem(card.id, targetChecklist.id, itemId, labelId);
+                            queryClient.invalidateQueries({ queryKey: ['cards', card.board_id] });
+                          }
+                        }}
+                        onItemLabelRemove={(itemId, labelId) => {
+                          const targetChecklist = card.checklists?.find(cl => 
+                            cl.checklist_items?.some(item => item.id === itemId)
+                          );
+                          if (targetChecklist) {
+                            removeLabelFromChecklistItem(card.id, targetChecklist.id, itemId, labelId);
+                            queryClient.invalidateQueries({ queryKey: ['cards', card.board_id] });
+                          }
+                        }}
+                      />
                     ))}
                   </div>
+                  
+                  {(!card.checklists || card.checklists.length === 0) && (
+                    <p className="text-gray-500 text-sm">No checklists yet. Click "Add Checklist" to create one.</p>
+                  )}
                 </div>
 
                 {/* Attachments */}
@@ -487,33 +600,136 @@ export default function CardEditModal({ card, isOpen, onClose, onSave }: CardEdi
                   <div className="flex items-center justify-between mb-3">
                     <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
                       <Paperclip className="w-4 h-4" />
-                      <span>Attachments ({attachments.length})</span>
+                      <span>Attachments ({card.attachments?.length || 0})</span>
                     </label>
-                    <button className="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                    <button 
+                      onClick={() => setShowAttachmentModal(true)}
+                      className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                    >
                       + Add Attachment
                     </button>
                   </div>
                   <div className="space-y-2">
-                    {attachments.map((attachment) => (
-                      <div key={attachment.id} className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg">
+                    {card.attachments?.map((attachment) => (
+                      <div key={attachment.id} className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
                         <Paperclip className="w-4 h-4 text-gray-400" />
-                        <div className="flex-1">
-                          <div className="font-medium text-sm">{attachment.name}</div>
+                        <div 
+                          className="flex-1 cursor-pointer"
+                          onClick={() => setPreviewFile({
+                            id: attachment.id,
+                            name: attachment.name || 'Untitled',
+                            url: attachment.url,
+                            mime: attachment.mime,
+                            size: attachment.size
+                          })}
+                        >
+                          <div className="font-medium text-sm text-blue-600 hover:text-blue-800">{attachment.name}</div>
                           <div className="text-xs text-gray-500">
-                            {formatFileSize(attachment.size)} • Added {new Date(attachment.uploadedAt).toLocaleDateString()}
+                            {attachment.size ? formatFileSize(attachment.size) : 'Unknown size'} • Added {new Date(attachment.created_at).toLocaleDateString()} • Click to preview
                           </div>
                         </div>
-                        <button className="text-blue-600 hover:text-blue-800 text-sm">
-                          Download
-                        </button>
+                        <div className="flex items-center space-x-2">
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPreviewFile({
+                                id: attachment.id,
+                                name: attachment.name || 'Untitled',
+                                url: attachment.url,
+                                mime: attachment.mime,
+                                size: attachment.size
+                              });
+                            }}
+                            className="text-blue-600 hover:text-blue-800 text-sm"
+                          >
+                            Preview
+                          </button>
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              window.open(attachment.url, '_blank');
+                            }}
+                            className="text-green-600 hover:text-green-800 text-sm"
+                          >
+                            Download
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeAttachmentMutation.mutate(attachment.id);
+                            }}
+                            className="text-red-600 hover:text-red-800 text-sm"
+                          >
+                            Remove
+                          </button>
+                        </div>
                       </div>
                     ))}
+                    {(!card.attachments || card.attachments.length === 0) && (
+                      <p className="text-gray-500 text-sm">No attachments. Click "Add Attachment" to upload files.</p>
+                    )}
                   </div>
+                </div>
+
+                {/* Location */}
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                      <MapPin className="w-4 h-4" />
+                      <span>Location</span>
+                    </label>
+                    <button 
+                      onClick={() => setShowLocationModal(true)}
+                      className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                    >
+                      {card.location_address ? 'Edit Location' : '+ Add Location'}
+                    </button>
+                  </div>
+                  {card.location_address ? (
+                    <div className="p-3 border border-gray-200 rounded-lg">
+                      <div className="flex items-start space-x-3">
+                        <MapPin className="w-4 h-4 text-gray-400 mt-0.5" />
+                        <div className="flex-1">
+                          <div className="font-medium text-sm">{card.location_address}</div>
+                          {card.location_lat && card.location_lng && (
+                            <div className="text-xs text-gray-500 mt-1">
+                              Coordinates: {card.location_lat}, {card.location_lng}
+                            </div>
+                          )}
+                        </div>
+                        <button 
+                          onClick={() => {
+                            updateCardMutation.mutate({
+                              location_address: null,
+                              location_lat: null,
+                              location_lng: null
+                            });
+                          }}
+                          className="text-red-600 hover:text-red-800 text-sm"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-gray-500 text-sm">No location set. Click "Add Location" to set one.</p>
+                  )}
                 </div>
               </div>
             ) : activeTab === 'activity' ? (
               /* Activity Tab */
               <div className="space-y-6">
+                {/* Activity Feed */}
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center space-x-2">
+                    <Clock className="w-5 h-5" />
+                    <span>Activity Log</span>
+                  </h3>
+                  <div className="bg-gray-50 rounded-lg p-4 max-h-96 overflow-y-auto">
+                    <ActivityFeed card={card} showLimit={15} showActorNames={true} compact={false} />
+                  </div>
+                </div>
+
                 {/* Add Comment */}
                 <div>
                   <label className="flex items-center space-x-2 text-sm font-medium text-gray-700 mb-2">
@@ -540,6 +756,7 @@ export default function CardEditModal({ card, isOpen, onClose, onSave }: CardEdi
 
                 {/* Comments List */}
                 <div className="space-y-4">
+                  <h4 className="text-md font-medium text-gray-900">Comments</h4>
                   {comments.map((comment) => (
                     <div key={comment.id} className="flex space-x-3 p-4 bg-gray-50 rounded-lg">
                       <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-medium">
@@ -556,6 +773,9 @@ export default function CardEditModal({ card, isOpen, onClose, onSave }: CardEdi
                       </div>
                     </div>
                   ))}
+                  {comments.length === 0 && (
+                    <p className="text-gray-500 text-sm italic">No comments yet. Be the first to comment!</p>
+                  )}
                 </div>
               </div>
             ) : (
@@ -632,8 +852,9 @@ export default function CardEditModal({ card, isOpen, onClose, onSave }: CardEdi
                     title: card.title,
                     description: card.description,
                     labels: selectedLabels,
-                    checklist: checklist,
-                    attachments: attachments
+                    checklist: card.checklists || [],
+                    attachments: card.attachments || [],
+                    members: card.assigned_members || []
                   }));
                   setCopySuccess(true);
                   setTimeout(() => setCopySuccess(false), 2000);
@@ -645,6 +866,27 @@ export default function CardEditModal({ card, isOpen, onClose, onSave }: CardEdi
                   {copySuccess ? 'Copied!' : 'Copy'}
                 </span>
               </button>
+              
+              {/* Restore Board Button - only shown for archived board cards */}
+              {card.metadata?.original_board_id && card.list_id === 'archive-list-3' && (
+                <button 
+                  onClick={async () => {
+                    const boardId = card.metadata?.original_board_id;
+                    if (boardId && confirm(`Restore board "${card.title}"?`)) {
+                      const { unarchiveBoard } = await import('@/api/boards');
+                      await unarchiveBoard(boardId);
+                      queryClient.invalidateQueries({ queryKey: ['boards'] });
+                      queryClient.invalidateQueries({ queryKey: ['cards', card.board_id] });
+                      onClose();
+                    }
+                  }}
+                  className="w-full flex items-center space-x-2 p-2 text-left hover:bg-green-50 rounded text-green-600 border border-green-200"
+                >
+                  <Archive className="w-4 h-4" />
+                  <span className="text-sm font-medium">Restore Board</span>
+                </button>
+              )}
+              
               <button 
                 onClick={() => setShowArchiveModal(true)}
                 className="w-full flex items-center space-x-2 p-2 text-left hover:bg-gray-100 rounded text-red-600"
@@ -711,8 +953,10 @@ export default function CardEditModal({ card, isOpen, onClose, onSave }: CardEdi
                 <button
                   onClick={() => {
                     if (memberForm.name.trim()) {
-                      // Add member logic here
-                      console.log('Adding member:', memberForm);
+                      addMemberMutation.mutate({
+                        name: memberForm.name.trim(),
+                        email: memberForm.email.trim() || undefined
+                      });
                       setMemberForm({ name: '', email: '' });
                       setShowMemberModal(false);
                     }
@@ -740,8 +984,13 @@ export default function CardEditModal({ card, isOpen, onClose, onSave }: CardEdi
           isOpen={showLabelModal}
           onClose={() => setShowLabelModal(false)}
           cardId={card.id}
-          selectedLabelIds={selectedLabels}
-          onLabelsChange={(labelIds) => setSelectedLabels(labelIds)}
+          selectedLabelIds={card.card_labels?.map(cl => cl.label_id) || []}
+          onLabelsChange={(labelIds) => {
+            // Update the local selected labels state
+            setSelectedLabels(labelIds);
+            // This will trigger a refetch of the card data
+            queryClient.invalidateQueries({ queryKey: ['cards', card.board_id] });
+          }}
         />
 
         {/* Label Creation Modal */}
@@ -884,7 +1133,8 @@ export default function CardEditModal({ card, isOpen, onClose, onSave }: CardEdi
                       if (file) {
                         setAttachmentForm({
                           name: file.name,
-                          url: URL.createObjectURL(file)
+                          url: URL.createObjectURL(file),
+                          file: file
                         });
                       }
                     }}
@@ -896,15 +1146,17 @@ export default function CardEditModal({ card, isOpen, onClose, onSave }: CardEdi
                 <button
                   onClick={() => {
                     if (attachmentForm.name && attachmentForm.url) {
-                      addAttachmentToCard(card.id, {
+                      const fileSize = attachmentForm.file?.size || 0;
+                      const mimeType = attachmentForm.file?.type || 'application/octet-stream';
+                      
+                      addAttachmentMutation.mutate({
                         name: attachmentForm.name,
                         url: attachmentForm.url,
-                        mime: 'application/octet-stream',
-                        size: 0
-                      }).then(() => {
-                        queryClient.invalidateQueries({ queryKey: ['cards', card.board_id] });
+                        mime: mimeType,
+                        size: fileSize
                       });
-                      setAttachmentForm({ name: '', url: '' });
+                      
+                      setAttachmentForm({ name: '', url: '', file: null });
                       setShowAttachmentModal(false);
                     }
                   }}
@@ -914,7 +1166,7 @@ export default function CardEditModal({ card, isOpen, onClose, onSave }: CardEdi
                 </button>
                 <button
                   onClick={() => {
-                    setAttachmentForm({ name: '', url: '' });
+                    setAttachmentForm({ name: '', url: '', file: null });
                     setShowAttachmentModal(false);
                   }}
                   className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
@@ -926,11 +1178,13 @@ export default function CardEditModal({ card, isOpen, onClose, onSave }: CardEdi
           </div>
         )}
 
-        {/* Add Location Modal */}
+        {/* Add/Edit Location Modal */}
         {showLocationModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-6 w-96 max-w-90vw">
-              <h3 className="text-lg font-semibold mb-4">Add Location</h3>
+              <h3 className="text-lg font-semibold mb-4">
+                {card.location_address ? 'Edit Location' : 'Add Location'}
+              </h3>
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
@@ -957,15 +1211,32 @@ export default function CardEditModal({ card, isOpen, onClose, onSave }: CardEdi
                 <button
                   onClick={() => {
                     if (locationForm.address.trim()) {
-                      // Add location logic here
-                      console.log('Adding location:', locationForm);
+                      // Parse coordinates if provided
+                      let lat = null;
+                      let lng = null;
+                      
+                      if (locationForm.coordinates.trim()) {
+                        const coords = locationForm.coordinates.split(',').map(c => parseFloat(c.trim()));
+                        if (coords.length === 2 && !isNaN(coords[0]) && !isNaN(coords[1])) {
+                          lat = coords[0];
+                          lng = coords[1];
+                        }
+                      }
+                      
+                      // Update the card with location data
+                      updateCardMutation.mutate({
+                        location_address: locationForm.address.trim(),
+                        location_lat: lat,
+                        location_lng: lng
+                      });
+                      
                       setLocationForm({ address: '', coordinates: '' });
                       setShowLocationModal(false);
                     }
                   }}
                   className="flex-1 bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600"
                 >
-                  Add Location
+                  {card.location_address ? 'Update Location' : 'Add Location'}
                 </button>
                 <button
                   onClick={() => {
@@ -1029,6 +1300,15 @@ export default function CardEditModal({ card, isOpen, onClose, onSave }: CardEdi
           </button>
         </div>
       </div>
+      
+      {/* File Preview Modal */}
+      {previewFile && (
+        <FilePreview
+          isOpen={!!previewFile}
+          file={previewFile}
+          onClose={() => setPreviewFile(null)}
+        />
+      )}
     </div>
   );
 }

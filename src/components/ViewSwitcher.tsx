@@ -16,7 +16,6 @@ export default function ViewSwitcher({ className = '' }: ViewSwitcherProps) {
     { id: 'board', name: 'Board', icon: '📋', path: `/b/${boardId}/board` },
     { id: 'table', name: 'Table', icon: '📊', path: `/b/${boardId}/table` },
     { id: 'calendar', name: 'Calendar', icon: '📅', path: `/b/${boardId}/calendar` },
-    { id: 'dashboard', name: 'Dashboard', icon: '📈', path: `/b/${boardId}/dashboard` },
     { id: 'map', name: 'Map', icon: '🗺️', path: `/b/${boardId}/map` },
   ];
 

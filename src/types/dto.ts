@@ -25,6 +25,13 @@ export type CardRow = {
   created_at: string;
   updated_at: string;
   archived?: boolean;
+  // Optional metadata for special card types (e.g., archived boards)
+  metadata?: {
+    original_board_id?: string;
+    archived_at?: string;
+    board_data?: any;
+    [key: string]: any;
+  };
   // Optional location
   location_lat?: number | null;
   location_lng?: number | null;
@@ -50,6 +57,14 @@ export type CardRow = {
     size?: number;
     created_at: string;
   }>;
+  // Optional assigned members
+  assigned_members?: Array<{
+    id: string;
+    name: string;
+    email?: string;
+    avatar?: string;
+    assigned_at: string;
+  }>;
   // Optional comments count
   comments?: Array<{
     id: string;
@@ -68,19 +83,42 @@ export type CardRow = {
       position?: number;
       // Enhanced checklist items with dates and assignments
       due_date?: string | null;
+      start_date?: string | null;
       assigned_to?: string | null;
       assigned_member_name?: string | null;
       priority?: 'low' | 'medium' | 'high' | null;
       created_at?: string;
       completed_at?: string | null;
+      // Label support for checklist items
+      labels?: Array<{
+        id: string;
+        name: string;
+        color: string;
+      }>;
     }>;
   }>;
   // Optional activity log
   activity?: Array<{
     id: string;
-    type: string;
-    meta: any;
+    type: 'card_created' | 'card_updated' | 'card_moved' | 'card_archived' | 'card_restored' |
+          'title_changed' | 'description_changed' | 'date_start_changed' | 'date_end_changed' |
+          'location_changed' | 'member_assigned' | 'member_removed' | 'label_added' | 'label_removed' |
+          'attachment_added' | 'attachment_removed' | 'checklist_added' | 'checklist_removed' |
+          'checklist_item_added' | 'checklist_item_removed' | 'checklist_item_completed' | 'checklist_item_uncompleted' |
+          'checklist_item_due_date_set' | 'checklist_item_due_date_removed' | 'checklist_item_assigned' |
+          'checklist_item_unassigned' | 'checklist_item_priority_changed' | 'checklist_item_start_date_set' |
+          'checklist_item_start_date_removed' | 'checklist_item_label_added' | 'checklist_item_label_removed' |
+          'comment_added' | 'comment_removed';
+    meta: {
+      old_value?: any;
+      new_value?: any;
+      field_name?: string;
+      target_id?: string;
+      target_name?: string;
+      details?: string;
+    };
     actor_id: string;
+    actor_name?: string;
     created_at: string;
   }>;
   // AI-generated ad copy sections

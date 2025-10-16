@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { getSupabase } from '@/app/supabaseClient';
+import { setCurrentUser } from '@/api/cards';
 
 interface AuthContextType {
   user: User | null;
@@ -19,6 +20,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isDemoMode, setIsDemoMode] = useState(false);
   const supabase = getSupabase();
 
+  // Update current user for activity logging whenever user changes
+  useEffect(() => {
+    if (user) {
+      const userName = user.user_metadata?.full_name || 
+                      user.user_metadata?.name || 
+                      user.email?.split('@')[0] || 
+                      'User';
+      
+      setCurrentUser({
+        id: user.id,
+        name: userName,
+        email: user.email
+      });
+    }
+  }, [user]);
+
   useEffect(() => {
     // Try to get initial session
     supabase.auth.getSession().then(({ data: { session }, error }) => {
@@ -26,12 +43,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.warn('Auth session error, enabling demo mode:', error.message);
         setIsDemoMode(true);
         // Create a demo user
-        setUser({
+        const demoUser = {
           id: 'demo-user-' + Date.now(),
           email: 'demo@example.com',
+          user_metadata: { full_name: 'Demo User' },
+          app_metadata: {},
+          aud: 'authenticated',
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-        } as User);
+        } as User;
+        setUser(demoUser);
       } else {
         setUser(session?.user ?? null);
       }
@@ -40,12 +61,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.warn('Auth initialization failed, enabling demo mode:', error);
       setIsDemoMode(true);
       // Create a demo user
-      setUser({
+      const demoUser = {
         id: 'demo-user-' + Date.now(),
         email: 'demo@example.com',
+        user_metadata: { full_name: 'Demo User' },
+        app_metadata: {},
+        aud: 'authenticated',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-      } as User);
+      } as User;
+      setUser(demoUser);
       setLoading(false);
     });
 

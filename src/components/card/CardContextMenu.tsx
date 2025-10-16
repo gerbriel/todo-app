@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Move, Trash2, Archive, Edit, ChevronRight } from 'lucide-react';
+import { Move, Trash2, Archive, Edit, ChevronDown } from 'lucide-react';
 import { getBoards } from '@/api/boards';
 import { moveCardToBoard, deleteCard } from '@/api/cards';
 import type { CardRow, BoardRow } from '@/types/dto';
@@ -70,7 +70,7 @@ export default function CardContextMenu({ card, onClose, isOpen, onEdit }: CardC
         }}
       />
       
-      <div className="absolute right-0 top-6 z-50 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 py-2 min-w-48">
+      <div className="absolute right-0 top-6 z-50 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 py-2 min-w-48 relative">
         {/* Edit option */}
         {onEdit && (
           <button
@@ -87,16 +87,41 @@ export default function CardContextMenu({ card, onClose, isOpen, onEdit }: CardC
 
         {/* Move option */}
         {otherBoards.length > 0 && (
-          <button
-            onClick={() => setShowMoveMenu(!showMoveMenu)}
-            className="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 justify-between"
-          >
-            <span className="flex items-center gap-2">
-              <Move className="w-4 h-4" />
-              Move
-            </span>
-            <ChevronRight className="w-4 h-4" />
-          </button>
+          <div className="relative">
+            <button
+              onClick={() => setShowMoveMenu(!showMoveMenu)}
+              className="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-between"
+            >
+              <span className="flex items-center gap-2">
+                <Move className="w-4 h-4" />
+                Move
+              </span>
+              <ChevronDown className={`w-4 h-4 transition-transform ${showMoveMenu ? 'rotate-180' : ''}`} />
+            </button>
+            
+            {/* Move submenu */}
+            {showMoveMenu && (
+              <div className="absolute left-0 top-full z-60 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 py-1 min-w-48 max-h-60 overflow-y-auto">
+                <div className="px-3 py-2 text-xs font-medium text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-600">
+                  Select Board
+                </div>
+                {otherBoards.map((board) => (
+                  <button
+                    key={board.id}
+                    onClick={() => {
+                      moveCardMutation.mutate({ targetBoardId: board.id });
+                      setShowMoveMenu(false);
+                      onClose();
+                    }}
+                    disabled={moveCardMutation.isPending}
+                    className="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 border-b border-gray-100 dark:border-gray-600 last:border-b-0 disabled:opacity-50"
+                  >
+                    {moveCardMutation.isPending ? 'Moving...' : board.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         )}
 
         {/* Archive option (only if not already in archive) */}
@@ -129,30 +154,6 @@ export default function CardContextMenu({ card, onClose, isOpen, onEdit }: CardC
           </button>
         )}
       </div>
-
-      {/* Move submenu */}
-      {showMoveMenu && otherBoards.length > 0 && (
-        <div className="absolute right-48 top-6 z-50 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 py-2 min-w-56 max-h-64 overflow-y-auto">
-          <div className="px-3 py-2 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide border-b border-gray-200 dark:border-gray-600">
-            Select Board
-          </div>
-          {otherBoards.map((board) => (
-            <button
-              key={board.id}
-              onClick={() => {
-                moveCardMutation.mutate({ targetBoardId: board.id });
-                setShowMoveMenu(false);
-                onClose();
-              }}
-              disabled={moveCardMutation.isPending}
-              className="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 disabled:opacity-50"
-            >
-              <Move className="w-4 h-4" />
-              {moveCardMutation.isPending ? 'Moving...' : board.name}
-            </button>
-          ))}
-        </div>
-      )}
     </>
   );
 }

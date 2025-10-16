@@ -11,11 +11,25 @@ interface CalendarCard extends CardRow {
   boardColor: string;
 }
 
+interface CalendarTask {
+  id: string;
+  cardId: string;
+  cardTitle: string;
+  taskText: string;
+  dueDate: string;
+  priority?: 'low' | 'medium' | 'high' | null;
+  assignedTo?: string | null;
+  completed: boolean;
+  boardName: string;
+  boardColor: string;
+}
+
 interface CalendarDay {
   date: Date;
   isCurrentMonth: boolean;
   isToday: boolean;
   cards: CalendarCard[];
+  tasks: CalendarTask[];
 }
 
 const MONTHS = [
@@ -97,12 +111,43 @@ export default function EnhancedCalendarView() {
         
         return cardStartDate === dateString || cardEndDate === dateString;
       });
+
+      // Extract tasks (checklist items) for this date
+      const dayTasks: CalendarTask[] = [];
+      cards.forEach(card => {
+        if (selectedBoardIds.length > 0 && !selectedBoardIds.includes(card.board_id)) {
+          return;
+        }
+
+        card.checklists?.forEach(checklist => {
+          checklist.checklist_items?.forEach(item => {
+            if (item.due_date) {
+              const taskDueDate = new Date(item.due_date).toISOString().split('T')[0];
+              if (taskDueDate === dateString) {
+                dayTasks.push({
+                  id: item.id,
+                  cardId: card.id,
+                  cardTitle: card.title,
+                  taskText: item.text || 'Untitled task',
+                  dueDate: item.due_date,
+                  priority: item.priority,
+                  assignedTo: item.assigned_to,
+                  completed: item.done,
+                  boardName: card.boardName,
+                  boardColor: card.boardColor
+                });
+              }
+            }
+          });
+        });
+      });
       
       days.push({
         date,
         isCurrentMonth,
         isToday,
-        cards: dayCards
+        cards: dayCards,
+        tasks: dayTasks
       });
     }
     
@@ -182,6 +227,20 @@ export default function EnhancedCalendarView() {
             </div>
           )}
 
+          {/* Date Type Legend */}
+          <div className="flex items-center space-x-3 text-xs text-gray-600 dark:text-gray-400">
+            <div className="flex items-center space-x-1">
+              <div className="w-3 h-3 bg-blue-500 rounded border-l-2 border-white"></div>
+              <span>📋 Cards</span>
+            </div>
+            <div className="flex items-center space-x-1">
+              <div className="w-3 h-3 bg-blue-500 rounded" style={{
+                backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 1px, rgba(255,255,255,0.3) 1px, rgba(255,255,255,0.3) 2px)'
+              }}></div>
+              <span>📌 Tasks</span>
+            </div>
+          </div>
+
           <button
             onClick={() => setShowFilters(!showFilters)}
             className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
@@ -226,22 +285,42 @@ export default function EnhancedCalendarView() {
                   {day.date.getDate()}
                 </div>
 
-                {/* Cards */}
+                {/* Cards and Tasks */}
                 <div className="space-y-1">
-                  {day.cards.slice(0, 3).map((card) => (
+                  {/* Card dates - solid background */}
+                  {day.cards.slice(0, 2).map((card) => (
                     <div
-                      key={card.id}
-                      className="text-xs p-1 rounded text-white truncate cursor-pointer hover:opacity-80 transition-opacity"
+                      key={`card-${card.id}`}
+                      className="text-xs p-1 rounded text-white truncate cursor-pointer hover:opacity-80 transition-opacity border-l-2 border-white"
                       style={{ backgroundColor: card.boardColor }}
-                      title={`${card.title} (${card.boardName})`}
+                      title={`Card: ${card.title} (${card.boardName})`}
                     >
-                      {card.title}
+                      📋 {card.title}
                     </div>
                   ))}
                   
-                  {day.cards.length > 3 && (
+                  {/* Task dates - striped/dotted pattern */}
+                  {day.tasks.slice(0, 3 - day.cards.length).map((task) => (
+                    <div
+                      key={`task-${task.id}`}
+                      className={`text-xs p-1 rounded text-white truncate cursor-pointer hover:opacity-80 transition-opacity border-l-2 border-dotted border-white ${
+                        task.completed ? 'opacity-60 line-through' : ''
+                      }`}
+                      style={{ 
+                        backgroundColor: task.boardColor,
+                        backgroundImage: task.completed 
+                          ? 'repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(255,255,255,0.2) 2px, rgba(255,255,255,0.2) 4px)'
+                          : 'repeating-linear-gradient(45deg, transparent, transparent 1px, rgba(255,255,255,0.1) 1px, rgba(255,255,255,0.1) 2px)'
+                      }}
+                      title={`Task: ${task.taskText} (from ${task.cardTitle})${task.priority ? ` - Priority: ${task.priority}` : ''}${task.completed ? ' - Completed' : ''}`}
+                    >
+                      {task.priority === 'high' ? '🔴' : task.priority === 'medium' ? '🟡' : task.priority === 'low' ? '🟢' : '📌'} {task.taskText}
+                    </div>
+                  ))}
+                  
+                  {(day.cards.length + day.tasks.length) > 3 && (
                     <div className="text-xs text-gray-500 dark:text-gray-400">
-                      +{day.cards.length - 3} more
+                      +{(day.cards.length + day.tasks.length) - 3} more
                     </div>
                   )}
                 </div>

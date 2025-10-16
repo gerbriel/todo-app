@@ -83,22 +83,56 @@ export default function SortableCard({ card }: SortableCardProps) {
       {...attributes}
       {...listeners}
     >
-      <div className="flex items-start justify-between">
-        <div className="font-medium text-gray-900 dark:text-white mb-1 flex-1">
+      <div className="flex items-start justify-between mb-2">
+        <div className="font-medium text-gray-900 dark:text-white flex-1 pr-2">
           {card.title}
         </div>
-        <button
-          className="context-menu-button p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-600 opacity-0 group-hover:opacity-100 transition-opacity"
-          onClick={handleContextMenu}
-          onMouseDown={(e) => e.stopPropagation()}
-        >
-          <MoreHorizontal className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-        </button>
+        
+        <div className="flex items-center gap-1">
+          {/* Assigned Members - Top Right */}
+          {card.assigned_members && card.assigned_members.length > 0 && (
+            <div className="flex -space-x-1">
+              {card.assigned_members.slice(0, 3).map((member) => (
+                <div
+                  key={member.id}
+                  className="relative group"
+                  title={member.name}
+                >
+                  {member.avatar ? (
+                    <img
+                      src={member.avatar}
+                      alt={member.name}
+                      className="w-6 h-6 rounded-full border-2 border-white dark:border-gray-700"
+                    />
+                  ) : (
+                    <div className="w-6 h-6 bg-blue-500 rounded-full border-2 border-white dark:border-gray-700 flex items-center justify-center text-white text-xs font-medium">
+                      {member.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                    </div>
+                  )}
+                </div>
+              ))}
+              {card.assigned_members.length > 3 && (
+                <div className="w-6 h-6 bg-gray-400 rounded-full border-2 border-white dark:border-gray-700 flex items-center justify-center text-white text-xs font-medium">
+                  +{card.assigned_members.length - 3}
+                </div>
+              )}
+            </div>
+          )}
+          
+          {/* Context Menu Button */}
+          <button
+            className="context-menu-button p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-600 opacity-0 group-hover:opacity-100 transition-opacity ml-1"
+            onClick={handleContextMenu}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <MoreHorizontal className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+          </button>
+        </div>
       </div>
       
       {card.description && typeof card.description === 'string' && card.description.trim() && (
         <div className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 mb-2">
-          {String(card.description)}
+          {card.description}
         </div>
       )}
       

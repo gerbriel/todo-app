@@ -1,6 +1,14 @@
 import { useState, useEffect } from 'react';
-import { Search, X, Edit2, Check, Archive, Star, Tag } from 'lucide-react';
+import { Search, X, Edit2, Check, Trash2 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { 
+  getAllLabels, 
+  createGlobalLabel, 
+  updateGlobalLabel, 
+  deleteGlobalLabel,
+  addLabelToCardById,
+  removeLabelFromCardById
+} from '@/api/cards';
 import type { Label } from '@/types';
 
 interface AdvancedLabelManagerProps {
@@ -10,23 +18,6 @@ interface AdvancedLabelManagerProps {
   selectedLabelIds?: string[];
   onLabelsChange?: (labelIds: string[]) => void;
 }
-
-interface LabelWithStats extends Label {
-  cardCount: number;
-  isSelected?: boolean;
-}
-
-// Mock data for demonstration - replace with actual API calls
-const mockLabels: LabelWithStats[] = [
-  { id: 'label-1', name: 'Final Form', color: '#22C55E', workspace_id: 'ws-1', created_at: new Date().toISOString(), cardCount: 12 },
-  { id: 'label-2', name: 'Viking Customers', color: '#A3A833', workspace_id: 'ws-1', created_at: new Date().toISOString(), cardCount: 8 },
-  { id: 'label-3', name: 'Dealer Order Form', color: '#D2691E', workspace_id: 'ws-1', created_at: new Date().toISOString(), cardCount: 15 },
-  { id: 'label-4', name: '', color: '#CD853F', workspace_id: 'ws-1', created_at: new Date().toISOString(), cardCount: 3 },
-  { id: 'label-5', name: '', color: '#DC143C', workspace_id: 'ws-1', created_at: new Date().toISOString(), cardCount: 2 },
-  { id: 'label-6', name: '', color: '#8A2BE2', workspace_id: 'ws-1', created_at: new Date().toISOString(), cardCount: 5 },
-  { id: 'label-7', name: 'QMC Customers', color: '#4169E1', workspace_id: 'ws-1', created_at: new Date().toISOString(), cardCount: 20 },
-  { id: 'label-8', name: '', color: '#1E90FF', workspace_id: 'ws-1', created_at: new Date().toISOString(), cardCount: 7 },
-];
 
 export default function AdvancedLabelManager({ 
   isOpen, 
@@ -49,23 +40,12 @@ export default function AdvancedLabelManager({
   // Mock query - replace with actual API
   const labelsQuery = useQuery({
     queryKey: ['labels'],
-    queryFn: () => Promise.resolve(mockLabels),
+    queryFn: () => getAllLabels(),
     enabled: isOpen
   });
 
   const createLabelMutation = useMutation({
-    mutationFn: async (newLabel: { name: string; color: string }) => {
-      // Mock API call
-      const label: LabelWithStats = {
-        id: `label-${Date.now()}`,
-        name: newLabel.name,
-        color: newLabel.color,
-        workspace_id: 'ws-1',
-        created_at: new Date().toISOString(),
-        cardCount: 0
-      };
-      return label;
-    },
+    mutationFn: createGlobalLabel,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['labels'] });
       setIsCreatingNew(false);
@@ -75,14 +55,38 @@ export default function AdvancedLabelManager({
   });
 
   const updateLabelMutation = useMutation({
-    mutationFn: async ({ id, name }: { id: string; name: string }) => {
-      // Mock API call
-      console.log('Updating label:', id, name);
-    },
+    mutationFn: ({ id, name }: { id: string; name: string }) => updateGlobalLabel(id, { name }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['labels'] });
       setEditingLabel(null);
       setEditName('');
+    }
+  });
+
+  const deleteLabelMutation = useMutation({
+    mutationFn: deleteGlobalLabel,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['labels'] });
+    }
+  });
+
+  const addLabelToCardMutation = useMutation({
+    mutationFn: ({ labelId }: { labelId: string }) => 
+      cardId ? addLabelToCardById(cardId, labelId) : Promise.resolve(),
+    onSuccess: () => {
+      if (cardId) {
+        queryClient.invalidateQueries({ queryKey: ['cards'] });
+      }
+    }
+  });
+
+  const removeLabelFromCardMutation = useMutation({
+    mutationFn: ({ labelId }: { labelId: string }) => 
+      cardId ? removeLabelFromCardById(cardId, labelId) : Promise.resolve(),
+    onSuccess: () => {
+      if (cardId) {
+        queryClient.invalidateQueries({ queryKey: ['cards'] });
+      }
     }
   });
 
@@ -102,6 +106,15 @@ export default function AdvancedLabelManager({
     
     setLocalSelectedIds(newSelection);
     onLabelsChange?.(newSelection);
+    
+    // If we have a cardId, also update the card's labels
+    if (cardId) {
+      if (localSelectedIds.includes(labelId)) {
+        removeLabelFromCardMutation.mutate({ labelId });
+      } else {
+        addLabelToCardMutation.mutate({ labelId });
+      }
+    }
   };
 
   const handleCreateLabel = () => {
@@ -118,6 +131,18 @@ export default function AdvancedLabelManager({
   const handleSaveEdit = () => {
     if (editingLabel && editName.trim()) {
       updateLabelMutation.mutate({ id: editingLabel, name: editName });
+    }
+  };
+
+  const handleDeleteLabel = (labelId: string) => {
+    if (confirm('Are you sure you want to delete this label? This action cannot be undone.')) {
+      deleteLabelMutation.mutate(labelId);
+      // Remove from local selection if it was selected
+      if (localSelectedIds.includes(labelId)) {
+        const newSelection = localSelectedIds.filter(id => id !== labelId);
+        setLocalSelectedIds(newSelection);
+        onLabelsChange?.(newSelection);
+      }
     }
   };
 
@@ -164,13 +189,15 @@ export default function AdvancedLabelManager({
             {filteredLabels.map((label) => (
               <div
                 key={label.id}
-                className="flex items-center space-x-3 p-2 hover:bg-gray-700 rounded-md cursor-pointer group"
-                onClick={() => toggleLabel(label.id)}
+                className="flex items-center space-x-3 p-2 hover:bg-gray-700 rounded-md group"
               >
                 {/* Checkbox */}
-                <div className={`w-4 h-4 border border-gray-500 rounded flex items-center justify-center ${
-                  localSelectedIds.includes(label.id) ? 'bg-blue-500 border-blue-500' : ''
-                }`}>
+                <div 
+                  className={`w-4 h-4 border border-gray-500 rounded flex items-center justify-center cursor-pointer ${
+                    localSelectedIds.includes(label.id) ? 'bg-blue-500 border-blue-500' : ''
+                  }`}
+                  onClick={() => toggleLabel(label.id)}
+                >
                   {localSelectedIds.includes(label.id) && (
                     <Check className="w-3 h-3 text-white" />
                   )}
@@ -178,10 +205,11 @@ export default function AdvancedLabelManager({
 
                 {/* Label */}
                 <div 
-                  className={`flex-1 px-3 py-2 rounded-md text-white font-medium flex items-center justify-between ${
+                  className={`flex-1 px-3 py-2 rounded-md text-white font-medium flex items-center justify-between cursor-pointer ${
                     label.name ? '' : 'opacity-80'
                   }`}
                   style={{ backgroundColor: label.color }}
+                  onClick={() => toggleLabel(label.id)}
                 >
                   {editingLabel === label.id ? (
                     <input
@@ -205,16 +233,29 @@ export default function AdvancedLabelManager({
                     </span>
                   )}
                   
-                  {/* Edit button */}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleEditLabel(label.id, label.name);
-                    }}
-                    className="opacity-0 group-hover:opacity-100 p-1 hover:bg-black hover:bg-opacity-20 rounded"
-                  >
-                    <Edit2 className="w-3 h-3" />
-                  </button>
+                  {/* Action buttons */}
+                  <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEditLabel(label.id, label.name);
+                      }}
+                      className="p-1 hover:bg-black hover:bg-opacity-20 rounded"
+                      title="Edit label"
+                    >
+                      <Edit2 className="w-3 h-3" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteLabel(label.id);
+                      }}
+                      className="p-1 hover:bg-black hover:bg-opacity-20 rounded text-red-300 hover:text-red-200"
+                      title="Delete label"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { MoreHorizontal, Edit2, Archive, Trash2, ArchiveRestore, MoveHorizontal } from 'lucide-react'
+import { MoreHorizontal, Edit2, Archive, Trash2, ArchiveRestore, MoveHorizontal, ChevronDown } from 'lucide-react'
 import type { Board as BoardType } from '../../types'
 
 interface CardActionMenuProps {
@@ -48,8 +48,8 @@ export function CardActionMenu({
     ? 'bottom-full mb-2' 
     : 'top-full mt-2'
 
-  const otherBoards = availableBoards.filter(board => 
-    board.id !== currentBoardId && !board.archived
+  const otherBoards = availableBoards.filter(
+    board => board.id !== currentBoardId
   )
 
   return (
@@ -101,7 +101,7 @@ export function CardActionMenu({
                       <MoveHorizontal className="w-4 h-4" />
                       <span>Move</span>
                     </div>
-                    <span className="text-xs">›</span>
+                    <ChevronDown className={`w-4 h-4 transition-transform ${showMoveMenu ? 'rotate-180' : ''}`} />
                   </button>
                 </div>
               )}
@@ -143,26 +143,19 @@ export function CardActionMenu({
 
           {/* Move to Board Submenu */}
           {showMoveMenu && (
-            <div className={`absolute right-48 ${menuClasses} w-64 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-30 max-h-96 overflow-y-auto`}>
+            <div className={`absolute right-48 ${menuClasses} w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg z-30 max-h-60 overflow-y-auto`}>
               <div className="py-1">
                 <div className="px-3 py-2 text-xs font-medium text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
-                  Select Board and List
+                  Select Board
                 </div>
                 {otherBoards.map((board) => (
-                  <div key={board.id} className="border-b border-gray-100 dark:border-gray-700 last:border-b-0">
-                    <div className="px-3 py-2 text-sm font-medium text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-750">
-                      {board.name}
-                    </div>
-                    {board.lists?.filter(list => !list.archived).map((list) => (
-                      <button
-                        key={list.id}
-                        onClick={() => handleMoveToBoard(board.id, list.id)}
-                        className="flex items-center space-x-2 w-full px-6 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                      >
-                        <span>→ {list.name}</span>
-                      </button>
-                    ))}
-                  </div>
+                  <button
+                    key={board.id}
+                    onClick={() => handleMoveToBoard(board.id, 'first-list')}
+                    className="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 border-b border-gray-100 dark:border-gray-600 last:border-b-0"
+                  >
+                    {board.name}
+                  </button>
                 ))}
               </div>
             </div>

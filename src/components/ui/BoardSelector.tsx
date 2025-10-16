@@ -13,12 +13,9 @@ interface BoardSelectorProps {
 export function BoardSelector({ 
   boards, 
   currentBoardId, 
-  onMoveToBoard, 
-  itemType,
-  itemName 
+  onMoveToBoard
 }: BoardSelectorProps) {
   const [isOpen, setIsOpen] = useState(false)
-  const [selectedBoardId, setSelectedBoardId] = useState('')
 
   // Filter out the current board
   const availableBoards = boards.filter(board => 
@@ -26,12 +23,10 @@ export function BoardSelector({
   )
 
   const handleBoardSelect = (boardId: string) => {
-    setSelectedBoardId(boardId)
     // For now, move immediately when a board is selected
     // TODO: For cards, we might need to add list selection later
     onMoveToBoard(boardId)
     setIsOpen(false)
-    setSelectedBoardId('')
   }
 
   if (availableBoards.length === 0) {

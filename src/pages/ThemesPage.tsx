@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Plus, X, Palette, Save } from 'lucide-react';
+import { GripVertical, Plus, X, Palette, Save, Star, StarOff, Settings } from 'lucide-react';
+import { getAllThemes, createTheme, setDefaultTheme } from '../api/themes';
+import type { Theme as ApiTheme, CreateThemeData } from '../api/themes';
 
 interface CardField {
   id: string;
@@ -174,7 +177,107 @@ function SortableField({ field, onUpdate, onDelete }: { field: CardField; onUpda
 export default function ThemesPage() {
   const [theme, setTheme] = useState<Theme>(defaultTheme);
   const [activeTab, setActiveTab] = useState<'colors' | 'fields' | 'labels' | 'calendar'>('colors');
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newThemeName, setNewThemeName] = useState('');
+  const [setAsActive, setSetAsActive] = useState(false);
+  
+  const queryClient = useQueryClient();
   const sensors = useSensors(useSensor(PointerSensor));
+
+  // Get themes from API
+  const { data: apiThemes = [] } = useQuery({
+    queryKey: ['themes'],
+    queryFn: getAllThemes
+  });
+
+  // Create theme mutation
+  const createThemeMutation = useMutation({
+    mutationFn: createTheme,
+    onSuccess: async (newTheme) => {
+      queryClient.invalidateQueries({ queryKey: ['themes'] });
+      if (setAsActive) {
+        await setDefaultMutation.mutateAsync(newTheme.id);
+      }
+      setShowCreateModal(false);
+      setNewThemeName('');
+      setSetAsActive(false);
+    }
+  });
+
+  // Set default theme mutation
+  const setDefaultMutation = useMutation({
+    mutationFn: setDefaultTheme,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['themes'] });
+    }
+  });
+
+  // Convert current theme to API format and save
+  const saveCurrentTheme = () => {
+    if (!newThemeName.trim()) {
+      alert('Please enter a theme name');
+      return;
+    }
+
+    const themeData: CreateThemeData = {
+      name: newThemeName,
+      description: `Custom theme with ${theme.cardFields.length} fields`,
+      colors: {
+        primary: theme.colors.primary,
+        secondary: theme.colors.secondary,
+        accent: theme.colors.accent,
+        background: theme.colors.background,
+        cardBackground: theme.colors.cardBackground,
+        text: theme.colors.text,
+        textSecondary: theme.colors.text,
+        border: theme.colors.border,
+        success: '#10b981',
+        warning: '#f59e0b',
+        error: '#ef4444',
+        info: theme.colors.accent
+      },
+      typography: {
+        fontFamily: 'Inter, sans-serif',
+        fontSize: {
+          xs: '12px',
+          sm: '14px',
+          base: '16px',
+          lg: '18px',
+          xl: '20px',
+          '2xl': '24px',
+          '3xl': '30px'
+        },
+        fontWeight: {
+          normal: '400',
+          medium: '500',
+          semibold: '600',
+          bold: '700'
+        }
+      },
+      spacing: {
+        xs: '4px',
+        sm: '8px',
+        md: '16px',
+        lg: '24px',
+        xl: '32px',
+        '2xl': '48px'
+      },
+      borderRadius: {
+        sm: '4px',
+        md: '8px',
+        lg: '12px',
+        full: '9999px'
+      },
+      shadows: {
+        sm: '0 1px 3px rgba(0, 0, 0, 0.1)',
+        md: '0 4px 6px rgba(0, 0, 0, 0.1)',
+        lg: '0 10px 15px rgba(0, 0, 0, 0.1)',
+        xl: '0 20px 25px rgba(0, 0, 0, 0.1)'
+      }
+    };
+
+    createThemeMutation.mutate(themeData);
+  };
 
   const handleDragEnd = (event: any) => {
     const { active, over } = event;
@@ -240,18 +343,26 @@ export default function ThemesPage() {
   };
 
   const saveTheme = () => {
-    localStorage.setItem('theme', JSON.stringify(theme));
-    alert('Theme saved successfully!');
+    setShowCreateModal(true);
   };
 
   return (
     <div className="max-w-6xl mx-auto p-6">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold">Theme Settings</h1>
-        <button onClick={saveTheme} className="flex items-center space-x-2 px-4 py-2 bg-blue-500 text-white rounded-lg">
-          <Save className="w-4 h-4" />
-          <span>Save Theme</span>
-        </button>
+        <div className="flex space-x-3">
+          <button 
+            onClick={() => window.location.href = '/admin'} 
+            className="flex items-center space-x-2 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600"
+          >
+            <Settings className="w-4 h-4" />
+            <span>Manage Themes</span>
+          </button>
+          <button onClick={saveTheme} className="flex items-center space-x-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
+            <Save className="w-4 h-4" />
+            <span>Save Theme</span>
+          </button>
+        </div>
       </div>
 
       <div className="bg-white rounded-lg border">
@@ -431,6 +542,61 @@ export default function ThemesPage() {
           )}
         </div>
       </div>
+
+      {/* Create Theme Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h2 className="text-xl font-semibold mb-4">Save Theme</h2>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Theme Name</label>
+                <input
+                  type="text"
+                  value={newThemeName}
+                  onChange={(e) => setNewThemeName(e.target.value)}
+                  placeholder="Enter theme name"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="setAsActive"
+                  checked={setAsActive}
+                  onChange={(e) => setSetAsActive(e.target.checked)}
+                  className="mr-2"
+                />
+                <label htmlFor="setAsActive" className="text-sm text-gray-700">
+                  Set as active theme (applies to entire app)
+                </label>
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowCreateModal(false);
+                  setNewThemeName('');
+                  setSetAsActive(false);
+                }}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveCurrentTheme}
+                disabled={!newThemeName.trim() || createThemeMutation.isPending}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {createThemeMutation.isPending ? 'Saving...' : 'Save Theme'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

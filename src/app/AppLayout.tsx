@@ -1,9 +1,8 @@
-import React from 'react';
 import { Outlet } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { FilterProvider } from '@/contexts/FilterContext';
+import { ThemeProvider } from '@/contexts/ThemeContext';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -18,12 +17,13 @@ export default function AppLayout() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <FilterProvider>
-          <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-            <Outlet />
-          </div>
-          <ReactQueryDevtools initialIsOpen={false} />
-        </FilterProvider>
+        <ThemeProvider>
+          <FilterProvider>
+            <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+              <Outlet />
+            </div>
+          </FilterProvider>
+        </ThemeProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

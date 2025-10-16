@@ -1,12 +1,13 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://btiyyxmiwngikpuygpsq.supabase.co'
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ0aXl5eG1pd25naWtwdXlncHNxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkxNzA0MDUsImV4cCI6MjA3NDc0NjQwNX0.4tt9SZ0VRsCObhvTKJzqb1IEkfGwi8IL_yI8PHjMvdo'
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || ''
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.warn('Supabase environment variables not configured')
+}
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
-
-// Simple logging without window pollution
-console.log('Supabase client initialized')
 
 // Enhanced error handling for common Supabase issues
 supabase.auth.onAuthStateChange((event) => {
