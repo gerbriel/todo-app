@@ -7,7 +7,7 @@ export default defineConfig({
   plugins: [react({
     jsxRuntime: 'automatic'
   })],
-  base: process.env.NODE_ENV === 'production' ? '/Project-managment-app/' : '/',
+  base: process.env.NODE_ENV === 'production' ? '/todo-app/' : '/',
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
