@@ -6,8 +6,6 @@ import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 
 interface ArchiveViewProps {
   boards: Board[]
-  onUnarchiveBoard: (boardId: string) => void
-  onDeleteBoard: (boardId: string) => void
   onUnarchiveList: (listId: string) => void
   onDeleteList: (listId: string) => void
   onUnarchiveCard: (cardId: string) => void
@@ -16,8 +14,6 @@ interface ArchiveViewProps {
 
 export function ArchiveView({
   boards,
-  onUnarchiveBoard,
-  onDeleteBoard,
   onUnarchiveList,
   onDeleteList,
   onUnarchiveCard,
@@ -35,14 +31,13 @@ export function ArchiveView({
     onConfirm: () => {}
   })
 
-  // Get archived items
-  const archivedBoards = boards.filter(board => board.archived)
+  // Get archived items (boards are deleted, not archived)
   const archivedLists = boards.flatMap(board => 
-    (board.lists || []).filter(list => list.archived)
+    (board.lists || []).filter((list: any) => list.archived)
   )
   const archivedCards = boards.flatMap(board => 
-    (board.lists || []).flatMap(list => 
-      (list.cards || []).filter(card => card.archived)
+    (board.lists || []).flatMap((list: any) => 
+      (list.cards || []).filter((card: any) => card.archived)
     )
   )
 
@@ -67,52 +62,6 @@ export function ArchiveView({
           Manage archived items
         </span>
       </div>
-
-      {/* Archived Boards */}
-      {archivedBoards.length > 0 && (
-        <div className="space-y-4">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Archived Boards</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {archivedBoards.map((board) => (
-              <div
-                key={board.id}
-                className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-medium text-gray-900 dark:text-white truncate">{board.name}</h3>
-                    {board.description && (
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">
-                        {board.description}
-                      </p>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center space-x-2 mt-4">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => onUnarchiveBoard(board.id)}
-                    className="flex items-center space-x-1"
-                  >
-                    <ArchiveRestore className="w-4 h-4" />
-                    <span>Restore</span>
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => handleDelete('Board', board.id, board.name, onDeleteBoard)}
-                    className="flex items-center space-x-1 text-red-600 hover:text-red-700"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    <span>Delete</span>
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Archived Lists */}
       {archivedLists.length > 0 && (
@@ -217,12 +166,12 @@ export function ArchiveView({
         </div>
       )}
 
-      {archivedBoards.length === 0 && archivedLists.length === 0 && archivedCards.length === 0 && (
+      {archivedLists.length === 0 && archivedCards.length === 0 && (
         <div className="text-center py-12">
           <ArchiveIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No archived items</h3>
           <p className="text-gray-600 dark:text-gray-400">
-            Archived boards, lists, and cards will appear here.
+            Archived lists and cards will appear here. Boards are permanently deleted.
           </p>
         </div>
       )}

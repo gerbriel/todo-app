@@ -867,26 +867,6 @@ export default function CardEditModal({ card, isOpen, onClose, onSave }: CardEdi
                 </span>
               </button>
               
-              {/* Restore Board Button - only shown for archived board cards */}
-              {card.metadata?.original_board_id && card.list_id === 'archive-list-3' && (
-                <button 
-                  onClick={async () => {
-                    const boardId = card.metadata?.original_board_id;
-                    if (boardId && confirm(`Restore board "${card.title}"?`)) {
-                      const { unarchiveBoard } = await import('@/api/boards');
-                      await unarchiveBoard(boardId);
-                      queryClient.invalidateQueries({ queryKey: ['boards'] });
-                      queryClient.invalidateQueries({ queryKey: ['cards', card.board_id] });
-                      onClose();
-                    }
-                  }}
-                  className="w-full flex items-center space-x-2 p-2 text-left hover:bg-green-50 rounded text-green-600 border border-green-200"
-                >
-                  <Archive className="w-4 h-4" />
-                  <span className="text-sm font-medium">Restore Board</span>
-                </button>
-              )}
-              
               <button 
                 onClick={() => setShowArchiveModal(true)}
                 className="w-full flex items-center space-x-2 p-2 text-left hover:bg-gray-100 rounded text-red-600"

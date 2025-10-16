@@ -63,12 +63,21 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   const regularBoards = boards.filter(board => board.name !== 'Archive').sort((a, b) => (a.position || 0) - (b.position || 0));
   const archiveBoardData = boards.find(board => board.name === 'Archive');
 
-  const archiveBoardMutation = useMutation({
-    mutationFn: (boardId: string) => archiveBoard(boardId),
+  const deleteBoardMutation = useMutation({
+    mutationFn: async (boardId: string) => {
+      console.log('🚀 Starting delete mutation for board:', boardId);
+      await archiveBoard(boardId); // Still uses archiveBoard which now calls deleteBoard
+      console.log('✅ Delete mutation completed for board:', boardId);
+    },
     onSuccess: () => {
+      console.log('📢 Delete mutation onSuccess called - invalidating queries');
       // Invalidate all possible board query keys to ensure all components update
       queryClient.invalidateQueries({ queryKey: ['boards', user?.id] });
       queryClient.invalidateQueries({ queryKey: ['my-boards'] });
+      console.log('✨ All queries invalidated');
+    },
+    onError: (error) => {
+      console.error('❌ Delete mutation failed:', error);
     },
   });
 
@@ -120,9 +129,16 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
     setEditBoardName('');
   };
 
-  const handleArchiveBoard = (boardId: string) => {
-    if (confirm('Are you sure you want to archive this board?')) {
-      archiveBoardMutation.mutate(boardId);
+  const handleDeleteBoard = (boardId: string) => {
+    console.log('🔔 handleDeleteBoard called with boardId:', boardId);
+    const boardToDelete = boards.find(b => b.id === boardId);
+    console.log('📋 Board to delete:', boardToDelete);
+    
+    if (confirm(`Are you sure you want to delete "${boardToDelete?.name}"? This action cannot be undone.`)) {
+      console.log('✔️ User confirmed delete');
+      deleteBoardMutation.mutate(boardId);
+    } else {
+      console.log('❌ User cancelled delete');
     }
   };
 
@@ -292,7 +308,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
                       onStartEdit={handleEditBoard}
                       onSaveEdit={handleSaveEdit}
                       onEditNameChange={setEditBoardName}
-                      onArchiveBoard={handleArchiveBoard}
+                      onArchiveBoard={handleDeleteBoard}
                     />
                   ))}
                 </div>

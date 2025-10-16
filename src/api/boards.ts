@@ -41,6 +41,9 @@ function saveBoards(boards: BoardRow[]): void {
 let sessionBoards: BoardRow[] = loadBoards();
 
 export async function getBoards(userId: string): Promise<BoardRow[]> {
+  // Always reload from localStorage to ensure we get the latest data
+  sessionBoards = loadBoards();
+  
   // Use localStorage only - filter out archived boards by default
   const boards = sessionBoards
     .filter(board => board.archived !== true)
@@ -61,6 +64,9 @@ export async function getBoard(boardId: string): Promise<BoardRow | null> {
     return ARCHIVE_BOARD;
   }
   
+  // Always reload from localStorage to ensure we get the latest data
+  sessionBoards = loadBoards();
+  
   // Find in session boards
   const board = sessionBoards.find(b => b.id === boardId);
   return board || null;
@@ -78,84 +84,42 @@ export async function createBoard(userId: string, name: string): Promise<BoardRo
   sessionBoards.push(newBoard);
   saveBoards(sessionBoards);
   
+  // Reload sessionBoards from localStorage to ensure consistency
+  sessionBoards = loadBoards();
+  
   return newBoard;
 }
 
-export async function archiveBoard(boardId: string): Promise<void> {
-  // Prevent archiving of the archive board
+export async function deleteBoard(boardId: string): Promise<void> {
+  // Prevent deleting the archive board
   if (boardId === ARCHIVE_BOARD.id) {
-    console.warn('Cannot archive the Archive board');
+    console.warn('Cannot delete the Archive board');
     return;
   }
 
-  // Get the board to archive
+  // Get the board to delete
   const boardIndex = sessionBoards.findIndex(board => board.id === boardId);
   if (boardIndex === -1) {
     console.warn('Board not found:', boardId);
     return;
   }
 
-  const boardToArchive = sessionBoards[boardIndex];
-
-  // Import cards API dynamically to avoid circular dependency
-  const { createArchivedBoardCard } = await import('./cards');
-  
-  // Create a card in the "Archived Boards" list representing this board
-  await createArchivedBoardCard(boardToArchive);
+  const boardToDelete = sessionBoards[boardIndex];
+  console.log('�️ Deleting board:', boardToDelete.name, '(ID:', boardId, ')');
 
   // Remove the board from the active boards list
   sessionBoards.splice(boardIndex, 1);
   saveBoards(sessionBoards);
+  console.log('💾 Deleted board and saved to localStorage');
+  
+  // Reload sessionBoards from localStorage to ensure consistency
+  sessionBoards = loadBoards();
+  console.log('🔄 Reloaded boards from localStorage. Active boards:', sessionBoards.length);
 }
 
-export async function unarchiveBoard(boardId: string): Promise<void> {
-  // Import cards API dynamically to avoid circular dependency
-  const { getCardById, deleteCard } = await import('./cards');
-  
-  // Find the archived board card
-  const archivedCardId = `archived-board-${boardId}`;
-  const archivedCard = await getCardById(archivedCardId);
-  
-  if (!archivedCard || !archivedCard.metadata?.board_data) {
-    console.warn('Archived board card not found:', archivedCardId);
-    return;
-  }
-  
-  // Restore the board from the card metadata
-  const restoredBoard: BoardRow = {
-    ...archivedCard.metadata.board_data,
-    updated_at: new Date().toISOString(),
-  };
-  
-  // Add back to active boards
-  sessionBoards.push(restoredBoard);
-  saveBoards(sessionBoards);
-  
-  // Delete the archived board card
-  await deleteCard(archivedCardId);
-}
-
-export async function getArchivedBoards(_userId: string): Promise<BoardRow[]> {
-  // Get archived boards from the archived board cards in the archive board
-  const { getCardsByList } = await import('./cards');
-  
-  try {
-    const archivedBoardCards = await getCardsByList('archive-list-3');
-    
-    // Convert cards back to board objects
-    const boards: BoardRow[] = archivedBoardCards
-      .filter((card: any) => card.metadata?.board_data)
-      .map((card: any) => ({
-        ...card.metadata!.board_data,
-        archived: true,
-        updated_at: card.metadata!.archived_at || card.updated_at,
-      }));
-    
-    return boards;
-  } catch (error) {
-    console.warn('Failed to get archived boards:', error);
-    return [];
-  }
+// Keep archiveBoard as an alias for backwards compatibility
+export async function archiveBoard(boardId: string): Promise<void> {
+  return deleteBoard(boardId);
 }
 
 export async function updateBoardName(boardId: string, name: string): Promise<void> {
@@ -164,6 +128,8 @@ export async function updateBoardName(boardId: string, name: string): Promise<vo
   if (boardIndex !== -1) {
     sessionBoards[boardIndex].name = name;
     saveBoards(sessionBoards);
+    // Reload sessionBoards from localStorage to ensure consistency
+    sessionBoards = loadBoards();
   }
 }
 
@@ -174,6 +140,8 @@ export async function updateBoardPosition(boardId: string, position: number): Pr
     sessionBoards[boardIndex].position = position;
     sessionBoards[boardIndex].updated_at = new Date().toISOString();
     saveBoards(sessionBoards);
+    // Reload sessionBoards from localStorage to ensure consistency
+    sessionBoards = loadBoards();
   }
 }
 

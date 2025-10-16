@@ -79,19 +79,24 @@ export default function SortableBoard({
   }
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} className="group relative">
-      <Link
-        to={`/b/${board.id}/board`}
+    <div ref={setNodeRef} style={style} className="group relative">
+      <div
         className={`flex items-center px-3 py-2 rounded-lg transition-colors ${
           boardId === board.id
             ? 'bg-blue-600 text-white'
             : 'text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
         }`}
-        {...listeners}
       >
-        <span className="flex-1 text-sm font-medium truncate">{board.name}</span>
+        <Link
+          to={`/b/${board.id}/board`}
+          className="flex-1 text-sm font-medium truncate"
+          {...attributes}
+          {...listeners}
+        >
+          {board.name}
+        </Link>
         
-        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center space-x-1">
+        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center space-x-1 ml-2">
           <button
             onClick={(e) => {
               e.preventDefault();
@@ -112,20 +117,21 @@ export default function SortableBoard({
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
+                console.log('🖱️ Delete button clicked for board:', board.id);
                 onArchiveBoard(board.id);
               }}
-              className={`p-1 rounded ${
+              className={`p-1 rounded hover:bg-red-500 hover:text-white ${
                 boardId === board.id
-                  ? 'hover:bg-blue-700'
-                  : 'hover:bg-gray-300 dark:hover:bg-gray-600'
+                  ? 'text-white hover:bg-red-700'
+                  : 'text-red-600 dark:text-red-400'
               }`}
-              title="Archive board"
+              title="Delete board"
             >
               <Archive className="w-3 h-3" />
             </button>
           )}
         </div>
-      </Link>
+      </div>
     </div>
   );
 }
