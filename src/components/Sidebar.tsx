@@ -11,7 +11,7 @@ import {
   Settings,
   Shield
 } from 'lucide-react';
-import { getBoards, createBoard, archiveBoard, updateBoardName, updateBoardPosition } from '@/api/boards';
+import { getBoards, createBoard, deleteBoard, updateBoardName, updateBoardPosition } from '@/api/boards';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   DndContext,
@@ -61,21 +61,21 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   const regularBoards = boards.filter(board => board.name !== 'Archive').sort((a, b) => (a.position || 0) - (b.position || 0));
   const archiveBoardData = boards.find(board => board.name === 'Archive');
 
-  const archiveBoardMutation = useMutation({
+  const deleteBoardMutation = useMutation({
     mutationFn: async (boardId: string) => {
-      console.log('🚀 Starting archive mutation for board:', boardId);
-      await archiveBoard(boardId);
-      console.log('✅ Archive mutation completed for board:', boardId);
+      console.log('🚀 Starting delete mutation for board:', boardId);
+      await deleteBoard(boardId);
+      console.log('✅ Delete mutation completed for board:', boardId);
     },
     onSuccess: () => {
-      console.log('📢 Archive mutation onSuccess called - invalidating queries');
+      console.log('📢 Delete mutation onSuccess called - invalidating queries');
       // Invalidate all possible board query keys to ensure all components update
       queryClient.invalidateQueries({ queryKey: ['boards', user?.id] });
       queryClient.invalidateQueries({ queryKey: ['my-boards'] });
       console.log('✨ All queries invalidated');
     },
     onError: (error) => {
-      console.error('❌ Archive mutation failed:', error);
+      console.error('❌ Delete mutation failed:', error);
     },
   });
 
@@ -127,16 +127,24 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
     setEditBoardName('');
   };
 
-  const handleArchiveBoard = (boardId: string) => {
-    console.log('🔔 handleArchiveBoard called with boardId:', boardId);
-    const boardToArchive = boards.find(b => b.id === boardId);
-    console.log('📋 Board to archive:', boardToArchive);
+  const handleDeleteBoard = (boardId: string) => {
+    console.log('🔔 handleDeleteBoard called with boardId:', boardId);
+    const boardToDelete = boards.find(b => b.id === boardId);
+    console.log('📋 Board to delete:', boardToDelete);
     
-    if (confirm(`Are you sure you want to archive "${boardToArchive?.name}"?`)) {
-      console.log('✔️ User confirmed archive');
-      archiveBoardMutation.mutate(boardId);
+    const confirmMessage = `⚠️ Delete "${boardToDelete?.name}"?\n\n` +
+      `This will permanently delete the board and ALL of its:\n` +
+      `• Lists\n` +
+      `• Cards\n` +
+      `• Attachments\n\n` +
+      `💡 TIP: Consider archiving individual lists or cards first if you want to keep any data.\n\n` +
+      `This action CANNOT be undone!`;
+    
+    if (confirm(confirmMessage)) {
+      console.log('✔️ User confirmed delete');
+      deleteBoardMutation.mutate(boardId);
     } else {
-      console.log('❌ User cancelled archive');
+      console.log('❌ User cancelled delete');
     }
   };
 
@@ -244,18 +252,6 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
         </Link>
 
         <Link
-          to="/archive"
-          className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
-            location.pathname === '/archive'
-              ? 'bg-blue-600 text-white'
-              : 'text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-          }`}
-        >
-          <Archive className="w-4 h-4" />
-          <span className="text-sm font-medium">Archive</span>
-        </Link>
-
-        <Link
           to="/themes"
           className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
             location.pathname === '/themes'
@@ -306,7 +302,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
                       onStartEdit={handleEditBoard}
                       onSaveEdit={handleSaveEdit}
                       onEditNameChange={setEditBoardName}
-                      onArchiveBoard={handleArchiveBoard}
+                      onArchiveBoard={handleDeleteBoard}
                     />
                   ))}
                 </div>

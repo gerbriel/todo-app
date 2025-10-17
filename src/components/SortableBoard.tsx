@@ -1,7 +1,7 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Link, useParams } from 'react-router-dom';
-import { Edit, Archive } from 'lucide-react';
+import { Edit, Trash2 } from 'lucide-react';
 import type { BoardRow } from '@/types/dto';
 
 interface SortableBoardProps {
@@ -117,17 +117,17 @@ export default function SortableBoard({
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                console.log('🖱️ Archive button clicked for board:', board.id);
+                console.log('🖱️ Delete button clicked for board:', board.id);
                 onArchiveBoard(board.id);
               }}
-              className={`p-1 rounded hover:bg-amber-500 hover:text-white ${
+              className={`p-1 rounded hover:bg-red-500 hover:text-white ${
                 boardId === board.id
-                  ? 'text-white hover:bg-amber-600'
-                  : 'text-amber-600 dark:text-amber-400'
+                  ? 'text-white hover:bg-red-700'
+                  : 'text-red-600 dark:text-red-400'
               }`}
-              title="Archive board"
+              title="Delete board"
             >
-              <Archive className="w-3 h-3" />
+              <Trash2 className="w-3 h-3" />
             </button>
           )}
         </div>

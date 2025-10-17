@@ -118,9 +118,9 @@ export default function BoardMap() {
                     </span>
                   </div>
 
-                  {card.description && (
+                  {card.description && typeof card.description === 'string' && (
                     <p className="text-sm text-gray-600 dark:text-gray-300 mb-3 line-clamp-2">
-                      {String(card.description)}
+                      {card.description}
                     </p>
                   )}
 
