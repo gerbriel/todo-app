@@ -5,8 +5,7 @@ import {
   ChevronLeft, 
   ChevronRight, 
   Plus, 
-  Archive, 
-  Edit,
+  Archive,
   Calendar,
   Home,
   Settings,
@@ -29,7 +28,6 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import SortableBoard from './SortableBoard';
-import type { BoardRow } from '@/types/dto';
 
 interface SidebarProps {
   isCollapsed: boolean;
@@ -63,21 +61,21 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   const regularBoards = boards.filter(board => board.name !== 'Archive').sort((a, b) => (a.position || 0) - (b.position || 0));
   const archiveBoardData = boards.find(board => board.name === 'Archive');
 
-  const deleteBoardMutation = useMutation({
+  const archiveBoardMutation = useMutation({
     mutationFn: async (boardId: string) => {
-      console.log('🚀 Starting delete mutation for board:', boardId);
-      await archiveBoard(boardId); // Still uses archiveBoard which now calls deleteBoard
-      console.log('✅ Delete mutation completed for board:', boardId);
+      console.log('🚀 Starting archive mutation for board:', boardId);
+      await archiveBoard(boardId);
+      console.log('✅ Archive mutation completed for board:', boardId);
     },
     onSuccess: () => {
-      console.log('📢 Delete mutation onSuccess called - invalidating queries');
+      console.log('📢 Archive mutation onSuccess called - invalidating queries');
       // Invalidate all possible board query keys to ensure all components update
       queryClient.invalidateQueries({ queryKey: ['boards', user?.id] });
       queryClient.invalidateQueries({ queryKey: ['my-boards'] });
       console.log('✨ All queries invalidated');
     },
     onError: (error) => {
-      console.error('❌ Delete mutation failed:', error);
+      console.error('❌ Archive mutation failed:', error);
     },
   });
 
@@ -129,16 +127,16 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
     setEditBoardName('');
   };
 
-  const handleDeleteBoard = (boardId: string) => {
-    console.log('🔔 handleDeleteBoard called with boardId:', boardId);
-    const boardToDelete = boards.find(b => b.id === boardId);
-    console.log('📋 Board to delete:', boardToDelete);
+  const handleArchiveBoard = (boardId: string) => {
+    console.log('🔔 handleArchiveBoard called with boardId:', boardId);
+    const boardToArchive = boards.find(b => b.id === boardId);
+    console.log('📋 Board to archive:', boardToArchive);
     
-    if (confirm(`Are you sure you want to delete "${boardToDelete?.name}"? This action cannot be undone.`)) {
-      console.log('✔️ User confirmed delete');
-      deleteBoardMutation.mutate(boardId);
+    if (confirm(`Are you sure you want to archive "${boardToArchive?.name}"?`)) {
+      console.log('✔️ User confirmed archive');
+      archiveBoardMutation.mutate(boardId);
     } else {
-      console.log('❌ User cancelled delete');
+      console.log('❌ User cancelled archive');
     }
   };
 
@@ -308,16 +306,59 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
                       onStartEdit={handleEditBoard}
                       onSaveEdit={handleSaveEdit}
                       onEditNameChange={setEditBoardName}
-                      onArchiveBoard={handleDeleteBoard}
+                      onArchiveBoard={handleArchiveBoard}
                     />
                   ))}
                 </div>
               </SortableContext>
             </DndContext>
 
+            {/* Create New Board */}
+            <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+              {showNewBoardForm ? (
+                <form onSubmit={handleCreateBoard} className="space-y-2">
+                  <input
+                    type="text"
+                    value={newBoardName}
+                    onChange={(e) => setNewBoardName(e.target.value)}
+                    placeholder="Board name"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                    autoFocus
+                  />
+                  <div className="flex space-x-2">
+                    <button
+                      type="submit"
+                      disabled={!newBoardName.trim() || createBoardMutation.isPending}
+                      className="flex-1 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {createBoardMutation.isPending ? 'Creating...' : 'Create Board'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowNewBoardForm(false);
+                        setNewBoardName('');
+                      }}
+                      className="px-3 py-2 text-sm bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <button
+                  onClick={() => setShowNewBoardForm(true)}
+                  className="w-full flex items-center px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create new board
+                </button>
+              )}
+            </div>
+
             {/* Archive Section */}
             {archiveBoardData && (
-              <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                 <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
                   Archive
                 </h3>
@@ -336,49 +377,6 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
             )}
           </>
         )}
-
-        {/* Create New Board */}
-        <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-          {showNewBoardForm ? (
-            <form onSubmit={handleCreateBoard} className="space-y-2">
-              <input
-                type="text"
-                value={newBoardName}
-                onChange={(e) => setNewBoardName(e.target.value)}
-                placeholder="Board name"
-                className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
-                autoFocus
-              />
-              <div className="flex space-x-2">
-                <button
-                  type="submit"
-                  disabled={!newBoardName.trim() || createBoardMutation.isPending}
-                  className="flex-1 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {createBoardMutation.isPending ? 'Creating...' : 'Create Board'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowNewBoardForm(false);
-                    setNewBoardName('');
-                  }}
-                  className="px-3 py-2 text-sm bg-gray-600 text-white rounded-lg hover:bg-gray-700"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          ) : (
-            <button
-              onClick={() => setShowNewBoardForm(true)}
-              className="w-full flex items-center px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Create new board
-            </button>
-          )}
-        </div>
       </div>
     </div>
   );

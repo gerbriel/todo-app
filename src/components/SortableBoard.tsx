@@ -117,15 +117,15 @@ export default function SortableBoard({
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                console.log('🖱️ Delete button clicked for board:', board.id);
+                console.log('🖱️ Archive button clicked for board:', board.id);
                 onArchiveBoard(board.id);
               }}
-              className={`p-1 rounded hover:bg-red-500 hover:text-white ${
+              className={`p-1 rounded hover:bg-amber-500 hover:text-white ${
                 boardId === board.id
-                  ? 'text-white hover:bg-red-700'
-                  : 'text-red-600 dark:text-red-400'
+                  ? 'text-white hover:bg-amber-600'
+                  : 'text-amber-600 dark:text-amber-400'
               }`}
-              title="Delete board"
+              title="Archive board"
             >
               <Archive className="w-3 h-3" />
             </button>

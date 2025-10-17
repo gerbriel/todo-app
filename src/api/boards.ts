@@ -13,7 +13,7 @@ export async function getBoards(userId: string): Promise<BoardRow[]> {
   try {
     console.log('📡 Fetching boards from Supabase for user:', userId);
     
-    // Fetch boards from Supabase
+    // Fetch non-archived boards from Supabase
     const { data, error } = await supabase
       .from('boards')
       .select('*')
@@ -34,6 +34,30 @@ export async function getBoards(userId: string): Promise<BoardRow[]> {
   } catch (error) {
     console.error('❌ Failed to fetch boards:', error);
     return [{ ...ARCHIVE_BOARD, workspace_id: userId }];
+  }
+}
+
+export async function getArchivedBoards(userId: string): Promise<BoardRow[]> {
+  try {
+    console.log('📡 Fetching archived boards from Supabase for user:', userId);
+    
+    const { data, error } = await supabase
+      .from('boards')
+      .select('*')
+      .eq('workspace_id', userId)
+      .eq('archived', true)
+      .order('updated_at', { ascending: false });
+
+    if (error) {
+      console.error('❌ Error fetching archived boards:', error);
+      throw error;
+    }
+
+    console.log('✅ Fetched', data?.length || 0, 'archived boards from Supabase');
+    return data || [];
+  } catch (error) {
+    console.error('❌ Failed to fetch archived boards:', error);
+    return [];
   }
 }
 
@@ -131,7 +155,30 @@ export async function deleteBoard(boardId: string): Promise<void> {
 
 // Keep archiveBoard as an alias for backwards compatibility
 export async function archiveBoard(boardId: string): Promise<void> {
-  return deleteBoard(boardId);
+  // Prevent archiving the archive board
+  if (boardId === ARCHIVE_BOARD.id) {
+    console.warn('Cannot archive the Archive board');
+    return;
+  }
+
+  try {
+    console.log('📦 Archiving board:', boardId);
+    
+    const { error } = await supabase
+      .from('boards')
+      .update({ archived: true, updated_at: new Date().toISOString() })
+      .eq('id', boardId);
+
+    if (error) {
+      console.error('❌ Error archiving board:', error);
+      throw error;
+    }
+
+    console.log('✅ Board archived successfully');
+  } catch (error) {
+    console.error('❌ Failed to archive board:', error);
+    throw error;
+  }
 }
 
 export async function updateBoardName(boardId: string, name: string): Promise<void> {
