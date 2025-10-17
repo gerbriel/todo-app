@@ -1,7 +1,5 @@
 import type { BoardRow, ListRow } from '@/types/dto';
-
-// Storage key for localStorage
-const STORAGE_KEY = 'todo-app-boards';
+import { supabase } from '@/app/supabaseClient';
 
 // Archive board - always present and cannot be deleted
 const ARCHIVE_BOARD: BoardRow = {
@@ -11,51 +9,32 @@ const ARCHIVE_BOARD: BoardRow = {
   created_at: new Date().toISOString(),
 };
 
-// Default starter boards for new users
-const DEFAULT_BOARDS: BoardRow[] = [];
-
-// Load boards from localStorage
-function loadBoards(): BoardRow[] {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      return JSON.parse(saved);
-    }
-    return [...DEFAULT_BOARDS]; // Return default boards if none saved
-  } catch (error) {
-    console.warn('Failed to load boards from localStorage:', error);
-    return [...DEFAULT_BOARDS];
-  }
-}
-
-// Save boards to localStorage
-function saveBoards(boards: BoardRow[]): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(boards));
-  } catch (error) {
-    console.warn('Failed to save boards to localStorage:', error);
-  }
-}
-
-// In-memory storage that syncs with localStorage
-let sessionBoards: BoardRow[] = loadBoards();
-
 export async function getBoards(userId: string): Promise<BoardRow[]> {
-  // Always reload from localStorage to ensure we get the latest data
-  sessionBoards = loadBoards();
-  
-  // Use localStorage only - filter out archived boards by default
-  const boards = sessionBoards
-    .filter(board => board.archived !== true)
-    .map(board => ({
-      ...board,
-      workspace_id: userId,
-    }));
-  
-  // Always add the archive board
-  const allBoards = [...boards, { ...ARCHIVE_BOARD, workspace_id: userId }];
-  
-  return allBoards;
+  try {
+    console.log('📡 Fetching boards from Supabase for user:', userId);
+    
+    // Fetch boards from Supabase
+    const { data, error } = await supabase
+      .from('boards')
+      .select('*')
+      .eq('workspace_id', userId)
+      .eq('archived', false)
+      .order('position', { ascending: true });
+
+    if (error) {
+      console.error('❌ Error fetching boards:', error);
+      throw error;
+    }
+
+    console.log('✅ Fetched', data?.length || 0, 'boards from Supabase');
+
+    // Add the archive board
+    const allBoards = [...(data || []), { ...ARCHIVE_BOARD, workspace_id: userId }];
+    return allBoards;
+  } catch (error) {
+    console.error('❌ Failed to fetch boards:', error);
+    return [{ ...ARCHIVE_BOARD, workspace_id: userId }];
+  }
 }
 
 export async function getBoard(boardId: string): Promise<BoardRow | null> {
@@ -63,31 +42,64 @@ export async function getBoard(boardId: string): Promise<BoardRow | null> {
   if (boardId === 'archive-board') {
     return ARCHIVE_BOARD;
   }
-  
-  // Always reload from localStorage to ensure we get the latest data
-  sessionBoards = loadBoards();
-  
-  // Find in session boards
-  const board = sessionBoards.find(b => b.id === boardId);
-  return board || null;
+
+  try {
+    const { data, error } = await supabase
+      .from('boards')
+      .select('*')
+      .eq('id', boardId)
+      .single();
+
+    if (error) {
+      console.error('Error fetching board:', error);
+      return null;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Failed to fetch board:', error);
+    return null;
+  }
 }
 
 export async function createBoard(userId: string, name: string): Promise<BoardRow> {
-  const newBoard: BoardRow = {
-    id: `board-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
-    workspace_id: userId,
-    name,
-    created_at: new Date().toISOString(),
-  };
+  try {
+    console.log('🆕 Creating board:', name, 'for user:', userId);
+    
+    // Get the highest position
+    const { data: existingBoards } = await supabase
+      .from('boards')
+      .select('position')
+      .eq('workspace_id', userId)
+      .order('position', { ascending: false })
+      .limit(1);
 
-  // Save to localStorage only - no Supabase to avoid errors
-  sessionBoards.push(newBoard);
-  saveBoards(sessionBoards);
-  
-  // Reload sessionBoards from localStorage to ensure consistency
-  sessionBoards = loadBoards();
-  
-  return newBoard;
+    const nextPosition = existingBoards && existingBoards.length > 0 
+      ? (existingBoards[0].position || 0) + 1000 
+      : 1000;
+
+    const { data, error } = await supabase
+      .from('boards')
+      .insert({
+        workspace_id: userId,
+        name,
+        position: nextPosition,
+        archived: false,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('❌ Error creating board:', error);
+      throw error;
+    }
+
+    console.log('✅ Board created successfully:', data.id);
+    return data;
+  } catch (error) {
+    console.error('❌ Failed to create board:', error);
+    throw error;
+  }
 }
 
 export async function deleteBoard(boardId: string): Promise<void> {
@@ -97,24 +109,24 @@ export async function deleteBoard(boardId: string): Promise<void> {
     return;
   }
 
-  // Get the board to delete
-  const boardIndex = sessionBoards.findIndex(board => board.id === boardId);
-  if (boardIndex === -1) {
-    console.warn('Board not found:', boardId);
-    return;
+  try {
+    console.log('🗑️ Deleting board:', boardId);
+    
+    const { error } = await supabase
+      .from('boards')
+      .delete()
+      .eq('id', boardId);
+
+    if (error) {
+      console.error('❌ Error deleting board:', error);
+      throw error;
+    }
+
+    console.log('✅ Board deleted successfully');
+  } catch (error) {
+    console.error('❌ Failed to delete board:', error);
+    throw error;
   }
-
-  const boardToDelete = sessionBoards[boardIndex];
-  console.log('�️ Deleting board:', boardToDelete.name, '(ID:', boardId, ')');
-
-  // Remove the board from the active boards list
-  sessionBoards.splice(boardIndex, 1);
-  saveBoards(sessionBoards);
-  console.log('💾 Deleted board and saved to localStorage');
-  
-  // Reload sessionBoards from localStorage to ensure consistency
-  sessionBoards = loadBoards();
-  console.log('🔄 Reloaded boards from localStorage. Active boards:', sessionBoards.length);
 }
 
 // Keep archiveBoard as an alias for backwards compatibility
@@ -123,25 +135,38 @@ export async function archiveBoard(boardId: string): Promise<void> {
 }
 
 export async function updateBoardName(boardId: string, name: string): Promise<void> {
-  // Update localStorage only - no Supabase to avoid errors
-  const boardIndex = sessionBoards.findIndex(board => board.id === boardId);
-  if (boardIndex !== -1) {
-    sessionBoards[boardIndex].name = name;
-    saveBoards(sessionBoards);
-    // Reload sessionBoards from localStorage to ensure consistency
-    sessionBoards = loadBoards();
+  try {
+    const { error } = await supabase
+      .from('boards')
+      .update({ name, updated_at: new Date().toISOString() })
+      .eq('id', boardId);
+
+    if (error) {
+      console.error('Error updating board name:', error);
+      throw error;
+    }
+    
+    console.log('✅ Board name updated');
+  } catch (error) {
+    console.error('Failed to update board name:', error);
+    throw error;
   }
 }
 
 export async function updateBoardPosition(boardId: string, position: number): Promise<void> {
-  // Update localStorage only - no Supabase to avoid errors
-  const boardIndex = sessionBoards.findIndex(board => board.id === boardId);
-  if (boardIndex !== -1) {
-    sessionBoards[boardIndex].position = position;
-    sessionBoards[boardIndex].updated_at = new Date().toISOString();
-    saveBoards(sessionBoards);
-    // Reload sessionBoards from localStorage to ensure consistency
-    sessionBoards = loadBoards();
+  try {
+    const { error } = await supabase
+      .from('boards')
+      .update({ position, updated_at: new Date().toISOString() })
+      .eq('id', boardId);
+
+    if (error) {
+      console.error('Error updating board position:', error);
+      throw error;
+    }
+  } catch (error) {
+    console.error('Failed to update board position:', error);
+    throw error;
   }
 }
 
@@ -153,6 +178,5 @@ export async function getListsByBoard(_boardId: string): Promise<ListRow[]> {
 
 export async function getBoardsByUser(userId: string): Promise<BoardRow[]> {
   // Get boards where the user is a member or owner
-  // For now, return all boards for any user (localStorage-based)
   return getBoards(userId);
 }
