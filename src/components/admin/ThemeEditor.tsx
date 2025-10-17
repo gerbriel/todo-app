@@ -57,7 +57,8 @@ const ThemeEditor: React.FC<ThemeEditorProps> = ({ isOpen, onClose }) => {
   const [editingTheme, setEditingTheme] = useState<CreateThemeData | null>(null)
   const [themeName, setThemeName] = useState('')
   const [themeDescription, setThemeDescription] = useState('')
-  const [previewMode, setPreviewMode] = useState(false)
+  const [previewMode, setPreviewMode] = useState(true) // Enable preview by default
+  const [originalTheme, setOriginalTheme] = useState<CreateThemeData | null>(null) // Store original for restore
 
   const queryClient = useQueryClient()
 
@@ -85,7 +86,7 @@ const ThemeEditor: React.FC<ThemeEditorProps> = ({ isOpen, onClose }) => {
   // Initialize editing theme
   useEffect(() => {
     if (currentTheme && !editingTheme) {
-      setEditingTheme({
+      const themeData = {
         name: currentTheme.name,
         description: currentTheme.description || '',
         colors: { ...currentTheme.colors },
@@ -93,12 +94,14 @@ const ThemeEditor: React.FC<ThemeEditorProps> = ({ isOpen, onClose }) => {
         spacing: { ...currentTheme.spacing },
         borderRadius: { ...currentTheme.borderRadius },
         shadows: { ...currentTheme.shadows }
-      })
+      }
+      setEditingTheme(themeData)
+      setOriginalTheme(themeData) // Save original for restore
       setThemeName(currentTheme.name)
       setThemeDescription(currentTheme.description || '')
     } else if (!currentTheme && !editingTheme) {
       // Use default theme as base
-      setEditingTheme({
+      const defaultData = {
         name: 'New Theme',
         description: 'Custom theme',
         colors: { ...defaultTheme.colors },
@@ -106,21 +109,52 @@ const ThemeEditor: React.FC<ThemeEditorProps> = ({ isOpen, onClose }) => {
         spacing: { ...defaultTheme.spacing },
         borderRadius: { ...defaultTheme.borderRadius },
         shadows: { ...defaultTheme.shadows }
-      })
+      }
+      setEditingTheme(defaultData)
+      setOriginalTheme(defaultData)
       setThemeName('New Theme')
       setThemeDescription('Custom theme')
     }
   }, [currentTheme, editingTheme])
 
+  // Live preview effect - apply theme changes in real-time
+  useEffect(() => {
+    if (previewMode && editingTheme && isOpen) {
+      // Apply CSS variables for live preview
+      const root = document.documentElement
+      Object.entries(editingTheme.colors).forEach(([key, value]) => {
+        root.style.setProperty(`--color-${key}`, value)
+      })
+    }
+  }, [editingTheme, previewMode, isOpen])
+
+  // Cleanup: restore original theme when closing without saving
+  useEffect(() => {
+    return () => {
+      if (!isOpen && originalTheme) {
+        const root = document.documentElement
+        Object.entries(originalTheme.colors).forEach(([key, value]) => {
+          root.style.setProperty(`--color-${key}`, value)
+        })
+      }
+    }
+  }, [isOpen, originalTheme])
+
   const handleColorChange = (colorKey: keyof Theme['colors'], value: string) => {
     if (editingTheme) {
-      setEditingTheme({
+      const newTheme = {
         ...editingTheme,
         colors: {
           ...editingTheme.colors,
           [colorKey]: value
         }
-      })
+      }
+      setEditingTheme(newTheme)
+      
+      // Instant live preview
+      if (previewMode) {
+        document.documentElement.style.setProperty(`--color-${colorKey}`, value)
+      }
     }
   }
 
@@ -275,12 +309,17 @@ const ThemeEditor: React.FC<ThemeEditorProps> = ({ isOpen, onClose }) => {
             <div className="flex items-center space-x-2">
               <button
                 onClick={() => setPreviewMode(!previewMode)}
-                className={`p-2 rounded-md transition-colors ${
-                  previewMode ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'
+                className={`px-3 py-2 rounded-md transition-colors flex items-center space-x-2 ${
+                  previewMode 
+                    ? 'bg-blue-100 text-blue-700 hover:bg-blue-200' 
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
-                title={previewMode ? 'Exit Preview' : 'Preview Theme'}
+                title={previewMode ? 'Disable live preview' : 'Enable live preview'}
               >
-                {previewMode ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                {previewMode ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
+                <span className="text-sm font-medium">
+                  {previewMode ? 'Preview On' : 'Preview Off'}
+                </span>
               </button>
               <button
                 onClick={onClose}
