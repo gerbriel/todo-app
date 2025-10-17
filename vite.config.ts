@@ -3,11 +3,11 @@ import react from '@vitejs/plugin-react'
 import path from 'path'
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [react({
     jsxRuntime: 'automatic'
   })],
-  base: '/todo-app/',
+  base: mode === 'production' ? '/todo-app/' : '/',
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -36,4 +36,4 @@ export default defineConfig({
       strict: true,
     },
   },
-})
+}))
