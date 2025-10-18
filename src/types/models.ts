@@ -12,6 +12,8 @@ export type Board = {
   workspace_id: ID; 
   name: string; 
   background_url?: string;
+  description?: string;
+  lists?: List[];
   created_at?: string;
   updated_at?: string;
 };
@@ -22,6 +24,7 @@ export type List = {
   name: string; 
   position: number;
   archived?: boolean;
+  cards?: Card[];
   created_at?: string;
   updated_at?: string;
 };
@@ -49,11 +52,13 @@ export type Card = {
   board_id: ID; 
   list_id: ID;
   title: string;
-  description?: unknown; // rich text JSON
+  description?: string | unknown; // rich text JSON
+  status?: 'not-started' | 'in-progress' | 'done' | string;
+  priority?: 'low' | 'medium' | 'high' | string;
   date_start?: string; 
   date_end?: string;
-  labels: ID[]; 
-  members: ID[];
+  labels: Array<ID | Label>;
+  members: Array<ID | { id: ID; name?: string }>;
   location?: { 
     address?: string; 
     lat?: number; 
@@ -121,4 +126,40 @@ export type Activity = {
   type: string;
   meta: Record<string, any>;
   created_at: string;
+};
+
+// Additional types used elsewhere in the app (minimal shapes)
+export type CustomField = CustomFieldDef;
+export type CustomFieldValue = {
+  id: ID;
+  card_id: ID;
+  custom_field_id: ID;
+  value: string | string[] | null;
+  created_at?: string;
+};
+
+export type CreateCustomFieldData = Omit<CustomField, 'id' | 'created_at'>;
+export type UpdateCustomFieldData = Partial<CreateCustomFieldData>;
+export type CustomFieldType = CustomFieldDef['type'];
+
+export type CardSection = {
+  id: ID;
+  card_id: ID;
+  section_type: string;
+  content?: any;
+};
+
+export type Address = {
+  address?: string;
+  lat?: number;
+  lon?: number;
+};
+
+export type TimeEntry = {
+  id: ID;
+  card_id?: ID;
+  user_id: ID;
+  hours: number;
+  description?: string;
+  created_at?: string;
 };

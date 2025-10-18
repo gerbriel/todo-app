@@ -422,157 +422,173 @@ export async function getCardById(cardId: string): Promise<CardRow | null> {
 }
 
 export async function updateCard(cardId: string, updates: Partial<CardRow>): Promise<CardRow> {
-  const cardIndex = sessionCards.findIndex(card => card.id === cardId);
-  if (cardIndex === -1) {
-    throw new Error('Card not found');
-  }
-  
-  const originalCard = sessionCards[cardIndex];
-  const updatedCard = {
-    ...originalCard,
-    ...updates,
-    updated_at: new Date().toISOString(),
-  };
-  
-  // Log activities for each changed field
-  const activities: Activity[] = [];
-  
-  // Check for title changes
-  if (updates.title !== undefined && updates.title !== originalCard.title) {
-    activities.push(createActivity('title_changed', {
-      field_name: 'title',
-      old_value: originalCard.title,
-      new_value: updates.title
-    }));
-  }
-  
-  // Check for description changes
-  if (updates.description !== undefined && updates.description !== originalCard.description) {
-    activities.push(createActivity('description_changed', {
-      field_name: 'description',
-      old_value: originalCard.description,
-      new_value: updates.description
-    }));
-  }
-  
-  // Check for date changes
-  if (updates.date_start !== undefined && updates.date_start !== originalCard.date_start) {
-    activities.push(createActivity('date_start_changed', {
-      field_name: 'date_start',
-      old_value: originalCard.date_start,
-      new_value: updates.date_start
-    }));
-  }
-  
-  if (updates.date_end !== undefined && updates.date_end !== originalCard.date_end) {
-    activities.push(createActivity('date_end_changed', {
-      field_name: 'date_end',
-      old_value: originalCard.date_end,
-      new_value: updates.date_end
-    }));
-  }
-  
-  // Check for location changes
-  if ((updates.location_address !== undefined && updates.location_address !== originalCard.location_address) ||
-      (updates.location_lat !== undefined && updates.location_lat !== originalCard.location_lat) ||
-      (updates.location_lng !== undefined && updates.location_lng !== originalCard.location_lng)) {
-    activities.push(createActivity('location_changed', {
-      field_name: 'location',
-      old_value: {
-        address: originalCard.location_address,
-        lat: originalCard.location_lat,
-        lng: originalCard.location_lng
-      },
-      new_value: {
-        address: updates.location_address ?? originalCard.location_address,
-        lat: updates.location_lat ?? originalCard.location_lat,
-        lng: updates.location_lng ?? originalCard.location_lng
-      }
-    }));
-  }
-  
-  // Add activities to the card
-  if (activities.length > 0) {
-    if (!updatedCard.activity) {
-      updatedCard.activity = [];
+  // Persist updates to Supabase cards table
+  try {
+    const payload: any = { ...updates, updated_at: new Date().toISOString() };
+
+    const { data, error } = await supabase
+      .from('cards')
+      .update(payload)
+      .eq('id', cardId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating card in Supabase:', error);
+      throw error;
     }
-    // Add all activities to the beginning
-    updatedCard.activity.unshift(...activities);
+
+    const updatedCard: CardRow = {
+      id: data.id,
+      list_id: data.list_id,
+      title: data.title,
+      description: data.description,
+      position: data.position,
+      date_start: data.date_start ?? null,
+      date_end: data.date_end ?? null,
+      created_at: data.created_at,
+      updated_at: data.updated_at,
+      workspace_id: data.workspace_id || '',
+      board_id: undefined as any, // board_id is derived from list -> callers should refetch lists/cards
+      created_by: data.created_by || '',
+      archived: data.archived || false,
+    } as CardRow;
+
+    // Update local session fallback if present
+    const idx = sessionCards.findIndex(c => c.id === cardId);
+    if (idx !== -1) {
+      sessionCards[idx] = { ...sessionCards[idx], ...updatedCard } as CardRow;
+      saveCards(sessionCards);
+    }
+
+    return updatedCard;
+  } catch (err) {
+    console.error('Unexpected error updating card:', err);
+    throw err;
   }
-  
-  sessionCards[cardIndex] = updatedCard;
-  saveCards(sessionCards); // Persist to localStorage
-  return updatedCard;
 }
 
 export async function updateCardPosition(cardId: string, listId: string, position: number): Promise<void> {
-  const cardIndex = sessionCards.findIndex(card => card.id === cardId);
-  if (cardIndex !== -1) {
-    sessionCards[cardIndex] = {
-      ...sessionCards[cardIndex],
-      list_id: listId,
-      position,
-      updated_at: new Date().toISOString(),
-    };
-    saveCards(sessionCards); // Persist to localStorage
+  try {
+    const { error } = await supabase
+      .from('cards')
+      .update({ list_id: listId, position, updated_at: new Date().toISOString() })
+      .eq('id', cardId);
+
+    if (error) {
+      console.error('Error updating card position in Supabase:', error);
+      throw error;
+    }
+
+    // Update local fallback
+    const idx = sessionCards.findIndex(c => c.id === cardId);
+    if (idx !== -1) {
+      sessionCards[idx] = { ...sessionCards[idx], list_id: listId, position, updated_at: new Date().toISOString() } as CardRow;
+      saveCards(sessionCards);
+    }
+  } catch (err) {
+    console.error('Unexpected error updating card position:', err);
+    throw err;
   }
 }
 
 export async function deleteCard(cardId: string): Promise<void> {
-  // Only allow deletion if card is in archive board
-  const cardIndex = sessionCards.findIndex(card => card.id === cardId);
-  if (cardIndex !== -1) {
-    const card = sessionCards[cardIndex];
-    if (card.board_id === 'archive-board') {
-      sessionCards.splice(cardIndex, 1);
-      saveCards(sessionCards); // Persist to localStorage
-    } else {
+  try {
+    // Enforce archive requirement: fetch card's list -> board
+    const { data: card, error: cardErr } = await supabase.from('cards').select('list_id').eq('id', cardId).single();
+    if (cardErr) {
+      console.error('Error fetching card for deletion:', cardErr);
+      throw cardErr;
+    }
+
+    const { data: listRow, error: listErr } = await supabase.from('lists').select('board_id').eq('id', card.list_id).single();
+    if (listErr) {
+      console.error('Error fetching list for deletion check:', listErr);
+      throw listErr;
+    }
+
+    if ((listRow as any)?.board_id !== 'archive-board') {
       throw new Error('Cards must be archived before they can be deleted');
     }
+
+    const { error } = await supabase.from('cards').delete().eq('id', cardId);
+    if (error) {
+      console.error('Error deleting card in Supabase:', error);
+      throw error;
+    }
+
+    // Update local fallback
+    const idx = sessionCards.findIndex(c => c.id === cardId);
+    if (idx !== -1) {
+      sessionCards.splice(idx, 1);
+      saveCards(sessionCards);
+    }
+  } catch (err) {
+    console.error('Unexpected error deleting card:', err);
+    throw err;
   }
 }
 
 export async function moveCardToBoard(cardId: string, targetBoardId: string, targetListId?: string): Promise<void> {
-  const cardIndex = sessionCards.findIndex(card => card.id === cardId);
-  if (cardIndex !== -1) {
+  try {
     let finalListId = targetListId;
-    
-    // If no specific list provided, find the first list in the target board
+
     if (!finalListId) {
-      try {
-        const savedLists = localStorage.getItem('todo-app-lists');
-        if (savedLists) {
-          const lists = JSON.parse(savedLists);
-          const targetBoardLists = lists.filter((list: any) => list.board_id === targetBoardId);
-          if (targetBoardLists.length > 0) {
-            finalListId = targetBoardLists[0].id;
-          }
-        }
-      } catch (error) {
-        console.warn('Could not find lists for target board:', targetBoardId);
+      // Find first list in the target board
+      const { data: lists, error: listsErr } = await supabase.from('lists').select('id').eq('board_id', targetBoardId).limit(1);
+      if (listsErr) {
+        console.error('Error fetching lists for target board:', listsErr);
       }
-      
-      // Fallback if no lists found
-      if (!finalListId) {
-        finalListId = `${targetBoardId}-list-1`;
-      }
+      if (lists && lists.length > 0) finalListId = lists[0].id;
     }
-    
-    // Update the card's board_id and list_id
-    sessionCards[cardIndex] = {
-      ...sessionCards[cardIndex],
-      board_id: targetBoardId,
-      list_id: finalListId,
-      position: Date.now(), // Put at end of list
-      updated_at: new Date().toISOString(),
-    };
-    saveCards(sessionCards); // Persist to localStorage
+
+    // If still no list, create a new one
+    if (!finalListId) {
+      const newList = await createListInDb(targetBoardId, 'Untitled');
+      finalListId = newList.id;
+    }
+
+    const { error } = await supabase
+      .from('cards')
+      .update({ list_id: finalListId, position: Date.now(), updated_at: new Date().toISOString() })
+      .eq('id', cardId);
+
+    if (error) {
+      console.error('Error moving card in Supabase:', error);
+      throw error;
+    }
+
+    // Update local fallback
+    const idx = sessionCards.findIndex(c => c.id === cardId);
+    if (idx !== -1) {
+      sessionCards[idx] = { ...sessionCards[idx], list_id: finalListId, position: Date.now(), updated_at: new Date().toISOString() } as CardRow;
+      saveCards(sessionCards);
+    }
+  } catch (err) {
+    console.error('Unexpected error moving card to board:', err);
+    throw err;
   }
 }
 
 export async function archiveCard(cardId: string): Promise<void> {
-  // Move card to archive board
-  await moveCardToBoard(cardId, 'archive-board', 'archive-list-1');
+  try {
+    // Prefer setting archived flag in DB
+    const { error } = await supabase.from('cards').update({ archived: true, updated_at: new Date().toISOString() }).eq('id', cardId);
+    if (error) {
+      console.error('Error archiving card in Supabase:', error);
+      throw error;
+    }
+
+    // Update local fallback
+    const idx = sessionCards.findIndex(c => c.id === cardId);
+    if (idx !== -1) {
+      sessionCards[idx] = { ...sessionCards[idx], archived: true, updated_at: new Date().toISOString() } as CardRow;
+      saveCards(sessionCards);
+    }
+  } catch (err) {
+    console.error('Unexpected error archiving card:', err);
+    throw err;
+  }
 }
 
 export async function getArchivedCards(boardId: string): Promise<CardRow[]> {
