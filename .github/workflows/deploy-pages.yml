@@ -19,7 +19,7 @@ jobs:
         with:
           node-version: '18'
 
-      - name: Debug: show environment and tool versions
+      - name: "Debug: show environment and tool versions"
         run: |
           echo '--- Environment check ---'
           node --version || echo 'node not found'
