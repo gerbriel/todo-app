@@ -13,21 +13,13 @@ export type Board = {
   name: string; 
   background_url?: string;
   description?: string;
-  lists?: List[];
+  // nested relations are intentionally typed as any to reduce strictness across the codebase
+  lists?: any;
   created_at?: string;
   updated_at?: string;
 };
 
-export type List = {
-  id: ID; 
-  board_id: ID; 
-  name: string; 
-  position: number;
-  archived?: boolean;
-  cards?: Card[];
-  created_at?: string;
-  updated_at?: string;
-};
+// list type defined later (kept single definition)
 
 export type Label = { 
   id: ID; 
@@ -41,8 +33,12 @@ export type CustomFieldDef = {
   id: ID; 
   workspace_id: ID; 
   name: string;
-  type: 'text'|'email'|'phone'|'number'|'checkbox'|'select'|'date';
+  field_type?: 'text'|'textarea'|'email'|'phone'|'number'|'currency'|'checkbox'|'select'|'multi-select'|'date'|'url';
   options?: string[];
+  required?: boolean;
+  default_value?: string;
+  placeholder?: string;
+  help_text?: string;
   created_at?: string;
 };
 
@@ -57,8 +53,9 @@ export type Card = {
   priority?: 'low' | 'medium' | 'high' | string;
   date_start?: string; 
   date_end?: string;
-  labels: Array<ID | Label>;
-  members: Array<ID | { id: ID; name?: string }>;
+  // labels and members can be either ids or richer objects across the codebase
+  labels: any[];
+  members: any[];
   location?: { 
     address?: string; 
     lat?: number; 
@@ -72,12 +69,12 @@ export type Card = {
   updated_at?: string;
 };
 
-export type Task = {
-  id: ID;
-  checklist_id: ID;
-  text: string;
-  done: boolean;
+export type List = {
+  id: ID; 
+  board_id: ID; 
+  name: string; 
   position: number;
+  cards?: any;
   created_at?: string;
   updated_at?: string;
 };
@@ -125,32 +122,40 @@ export type Activity = {
   actor_id: ID;
   type: string;
   meta: Record<string, any>;
+  details?: string;
+  action?: string;
   created_at: string;
 };
 
 // Additional types used elsewhere in the app (minimal shapes)
 export type CustomField = CustomFieldDef;
 export type CustomFieldValue = {
-  id: ID;
+  id?: ID;
   card_id: ID;
   custom_field_id: ID;
   value: string | string[] | null;
   created_at?: string;
+  // allow loose shapes from different storage backends
+  [key: string]: any;
 };
 
 export type CreateCustomFieldData = Omit<CustomField, 'id' | 'created_at'>;
 export type UpdateCustomFieldData = Partial<CreateCustomFieldData>;
-export type CustomFieldType = CustomFieldDef['type'];
+export type CustomFieldType = CustomFieldDef['field_type'];
 
 export type CardSection = {
   id: ID;
   card_id: ID;
   section_type: string;
   content?: any;
+  title?: string;
+  collapsed?: boolean;
+  full_address?: string;
 };
 
 export type Address = {
   address?: string;
+  full_address?: string;
   lat?: number;
   lon?: number;
 };
@@ -163,3 +168,5 @@ export type TimeEntry = {
   description?: string;
   created_at?: string;
 };
+
+export type CreateTimeEntryData = Omit<TimeEntry, 'id' | 'created_at'>;

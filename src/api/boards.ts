@@ -228,7 +228,6 @@ export async function getBoardsByUser(userId: string): Promise<BoardRow[]> {
   return getBoards(userId);
 }
 
-// Backwards-compatible API object
 export const boardsApi = {
   getBoards,
   getArchivedBoards,
@@ -240,4 +239,7 @@ export const boardsApi = {
   updateBoardPosition,
   getListsByBoard,
   getBoardsByUser
-};
+}
+
+// Backwards-compatible API object
+// Backwards-compatible API object (already exported above)

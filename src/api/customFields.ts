@@ -3,22 +3,22 @@ export const customFieldsApi = {
     // noop for CI
     return true
   },
-  async getCustomFields(workspaceId: string) {
+  async getCustomFields(_workspaceId: string) {
     return []
   },
-  async createCustomField(data: any) {
+  async createCustomField(_data: any) {
     return null
   },
-  async updateCustomField(id: string, data: any) {
+  async updateCustomField(_id: string, _data: any) {
     return null
   },
-  async deleteCustomField(id: string) {
+  async deleteCustomField(_id: string) {
     return null
   },
-  async getCustomFieldValues(cardId: string) {
+  async getCustomFieldValues(_cardId: string) {
     return []
   },
-  async setCustomFieldValue(cardId: string, fieldId: string, value: any) {
+  async setCustomFieldValue(_cardId: string, _fieldId: string, _value: any) {
     return null
   }
 }

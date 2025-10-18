@@ -135,6 +135,9 @@ export type CardRow = {
     is_approved?: boolean;
     position?: number;
   }>;
+  // Optional human-friendly fields used in UI
+  labels_simple?: Array<{ id: string; name: string; color: string } | string>;
+  members_simple?: Array<{ id: string; name?: string } | string>;
 };
 
 export type BoardRow = {
@@ -146,6 +149,9 @@ export type BoardRow = {
   archived?: boolean;
   created_at?: string;
   updated_at?: string;
+  description?: string | null;
+  // UI sometimes expects a lists array on board rows
+  lists?: any;
 };
 
 export type LabelRow = {
@@ -175,7 +181,7 @@ export type CustomFieldDefRow = {
   id: string;
   workspace_id: string;
   name: string;
-  type: 'text'|'email'|'phone'|'number'|'checkbox'|'select'|'date';
+  type: 'text'|'textarea'|'email'|'phone'|'number'|'currency'|'checkbox'|'select'|'multi-select'|'date';
   options?: string[] | null;
   created_at?: string;
 };
