@@ -1,0 +1,21 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Redirecting…</title>
+<script>
+  // SPA fallback for GitHub Pages: load the app index and let the client router handle the path
+  (async function() {
+    try {
+      const base = location.pathname.split('/').slice(0,2).join('/');
+      // try to fetch index.html relative to repo root
+      const resp = await fetch((base || '') + '/index.html');
+      if (!resp.ok) throw new Error('index not found');
+      const html = await resp.text();
+      document.open(); document.write(html); document.close();
+      // keep the current path for SPA router
+      history.replaceState({}, '', location.pathname + location.search + location.hash);
+    } catch (err) {
+      // fallback: redirect to repo root
+      location.replace('/');
+    }
+  })();
+</script>
