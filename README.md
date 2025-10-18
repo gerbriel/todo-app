@@ -84,8 +84,9 @@ A powerful, feature-rich todo and project management application built with Reac
 This app is configured for automatic deployment to GitHub Pages:
 
 ### **Automatic Deployment**
-- Push to `main` branch triggers automatic deployment via GitHub Actions
-- App will be available at: `https://yourusername.github.io/todo-app/`
+
+<!-- Deploy trigger: force rebuild on GitHub Actions -->
+<!-- Triggered at: 2025-10-18 08:45 UTC -->
 
 ### **Manual Deployment**
 ```bash
