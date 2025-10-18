@@ -1,4 +1,5 @@
 import React from 'react';
+import { useCardFilters } from '@/contexts/FilterContext';
 import { useParams } from 'react-router-dom';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { Plus } from 'lucide-react';
@@ -56,7 +57,34 @@ export default function Board() {
   const [newListName, setNewListName] = React.useState('');
   
   const rawCards = (cardsQuery.data ?? []) as CardRow[];
-  const cards = rawCards; // TODO: Add filtering
+
+  // Card filtering
+  const { filters, setFilters, clearFilters, isFilterActive } = useCardFilters();
+
+  // Filter cards by selected filters
+  const cards = rawCards.filter(card => {
+    // Assignee filter
+    if (filters.assignee && !(card.assigned_members || []).some(m => m.id === filters.assignee || m.name === filters.assignee)) return false;
+    // Label filter
+    if (filters.label && !(card.card_labels || []).some(l => l.labels?.name === filters.label || l.labels?.id === filters.label)) return false;
+    // Status filter (if you store status in metadata or custom field)
+    if (filters.status && card.metadata?.status !== filters.status) return false;
+    // Due date filter (example: overdue)
+    if (filters.dueDate && card.date_end) {
+      const now = new Date();
+      const due = new Date(card.date_end);
+      if (filters.dueDate === 'overdue' && due >= now) return false;
+      if (filters.dueDate === 'today' && due.toDateString() !== now.toDateString()) return false;
+      // Add more logic for 'tomorrow', 'week', 'month' as needed
+    }
+    // Search filter
+    if (filters.search) {
+      const title = card.title?.toLowerCase() || '';
+      const desc = typeof card.description === 'string' ? card.description.toLowerCase() : '';
+      if (!title.includes(filters.search.toLowerCase()) && !desc.includes(filters.search.toLowerCase())) return false;
+    }
+    return true;
+  });
 
   const createListMutation = useMutation({
     mutationFn: (name: string) => createList(boardId!, name),
@@ -295,9 +323,23 @@ export default function Board() {
 
   return (
     <div className="h-full w-full overflow-x-auto overflow-y-hidden">
+      {/* Card Filter Bar */}
+      <div className="flex gap-2 items-center p-2 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
+        {Object.entries(filters).map(([key, value]) =>
+          value ? (
+            <div key={key} className="px-2 py-1 rounded bg-blue-100 text-blue-700 text-xs flex items-center gap-1">
+              <span>{key}: {String(value)}</span>
+              <button className="ml-1 text-blue-500 hover:text-blue-700" onClick={() => setFilters({ ...filters, [key]: undefined })}>&times;</button>
+            </div>
+          ) : null
+        )}
+        {isFilterActive && (
+          <button className="px-2 py-1 text-xs text-gray-600 hover:text-gray-800" onClick={clearFilters}>Clear all</button>
+        )}
+      </div>
       <DndContext sensors={sensors} onDragStart={onDragStart} onDragOver={onDragOver} onDragEnd={onDragEnd} onDragCancel={onDragCancel}>
         <SortableContext items={lists.map((l) => l.id)} strategy={horizontalListSortingStrategy}>
-          <div className={`flex gap-4 min-w-max items-start p-4 h-full ${modalOpen ? 'pointer-events-none select-none' : ''}`}>
+          <div className={`flex gap-4 min-w-max items-start p-4 h-full ${modalOpen ? 'pointer-events-none select-none' : ''}`}> 
             {lists.map((l) => (
               <SortableList 
                 key={l.id}

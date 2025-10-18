@@ -1,6 +1,8 @@
 // Cards API - Full implementation with localStorage persistence and complete card features
 import type { CardRow } from '@/types/dto';
 import { generateAdCopy, type AdCopyRequest } from '@/services/aiService';
+import { supabase } from '@/app/supabaseClient';
+import { createList as createListInDb, getListsByBoard as _getListsByBoard } from '@/api/lists';
 
 // Activity type for better TypeScript support
 type ActivityType = 'card_created' | 'card_updated' | 'card_moved' | 'card_archived' | 'card_restored' |
@@ -227,60 +229,160 @@ function saveCards(cards: CardRow[]): void {
   }
 }
 
-// Initialize with persisted data
+// NOTE: sessionCards is kept as a fallback for some auxiliary functions that
+// still rely on localStorage (comments, ad copies, etc.). Core CRUD below uses Supabase.
 let sessionCards: CardRow[] = loadCards();
 
 export async function getCardsByBoard(boardId: string): Promise<CardRow[]> {
-  const filteredCards = sessionCards.filter(card => card.board_id === boardId);
-  return filteredCards;
+  // Fetch all lists for the board, then query cards whose list_id is in that set
+  try {
+    const { data: lists, error: listsError } = await supabase
+      .from('lists')
+      .select('id')
+      .eq('board_id', boardId);
+    if (listsError) {
+      console.error('Error fetching lists for board:', listsError);
+      return [];
+    }
+
+    const listIds = (lists || []).map((l: any) => l.id);
+    if (listIds.length === 0) return [];
+
+    const { data: cards, error } = await supabase
+      .from('cards')
+      .select('*')
+      .in('list_id', listIds)
+      .order('position', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching cards by board:', error);
+      return [];
+    }
+
+    // Map DB rows to CardRow and attach board_id (we already know it)
+    return (cards || []).map((c: any) => ({
+      id: c.id,
+      list_id: c.list_id,
+      title: c.title,
+      description: c.description,
+      position: c.position,
+      date_start: c.date_start ?? null,
+      date_end: c.date_end ?? null,
+      created_at: c.created_at,
+      updated_at: c.updated_at,
+      workspace_id: c.workspace_id || '',
+      board_id: boardId,
+      created_by: c.created_by || '',
+      archived: c.archived || false,
+      metadata: c.metadata || undefined,
+    } as CardRow));
+  } catch (err) {
+    console.error('Unexpected error fetching cards by board:', err);
+    return [];
+  }
 }
 
 export async function getCardsByList(listId: string): Promise<CardRow[]> {
-  const filteredCards = sessionCards.filter(card => card.list_id === listId);
-  return filteredCards;
+  try {
+    const { data: cards, error } = await supabase
+      .from('cards')
+      .select('*')
+      .eq('list_id', listId)
+      .order('position', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching cards by list:', error);
+      return [];
+    }
+
+    // Try to fetch the list to get its board_id (best-effort)
+    const { data: listRow } = await supabase.from('lists').select('board_id').eq('id', listId).single();
+    const boardId = (listRow as any)?.board_id;
+
+    return (cards || []).map((c: any) => ({
+      id: c.id,
+      list_id: c.list_id,
+      title: c.title,
+      description: c.description,
+      position: c.position,
+      date_start: c.date_start ?? null,
+      date_end: c.date_end ?? null,
+      created_at: c.created_at,
+      updated_at: c.updated_at,
+      workspace_id: c.workspace_id || '',
+      board_id: boardId,
+      created_by: c.created_by || '',
+      archived: c.archived || false,
+      metadata: c.metadata || undefined,
+    } as CardRow));
+  } catch (err) {
+    console.error('Unexpected error fetching cards by list:', err);
+    return [];
+  }
 }
 
 export async function createCardInList(listId: string, title: string): Promise<CardRow> {
-  // Find which board this list belongs to by checking saved lists
-  let boardId = 'guest-board'; // fallback
-  
   try {
-    const savedLists = localStorage.getItem('todo-app-lists');
-    if (savedLists) {
-      const lists = JSON.parse(savedLists);
-      const targetList = lists.find((list: any) => list.id === listId);
-      if (targetList) {
-        boardId = targetList.board_id;
-      }
+    // Find the board for the list
+  const { data: listRow } = await supabase.from('lists').select('board_id').eq('id', listId).single();
+    const boardId = (listRow as any)?.board_id || '';
+
+    // Compute next position in the list
+    const { data: existing } = await supabase
+      .from('cards')
+      .select('position')
+      .eq('list_id', listId)
+      .order('position', { ascending: false })
+      .limit(1);
+
+    const nextPosition = existing && existing.length > 0 ? (existing[0].position || 0) + 1000 : 1000;
+
+    const { data, error } = await supabase
+      .from('cards')
+      .insert({ list_id: listId, title, position: nextPosition })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating card:', error);
+      throw error;
     }
-  } catch (error) {
-    console.warn('Could not find board ID for list:', listId);
+
+    const card: CardRow = {
+      id: data.id,
+      list_id: data.list_id,
+      title: data.title,
+      description: data.description,
+      position: data.position,
+      date_start: data.date_start ?? null,
+      date_end: data.date_end ?? null,
+      created_at: data.created_at,
+      updated_at: data.updated_at,
+      workspace_id: data.workspace_id || '',
+      board_id: boardId,
+      created_by: data.created_by || '',
+    } as CardRow;
+
+    // Update session fallback
+    sessionCards.push(card);
+    saveCards(sessionCards);
+
+    return card;
+  } catch (err) {
+    console.error('Unexpected error creating card:', err);
+    throw err;
   }
-  
-  const position = Date.now();
-  
-  const newCard: CardRow = {
-    id: `card-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
-    list_id: listId,
-    title,
-    description: null,
-    position,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    date_start: null,
-    date_end: null,
-    workspace_id: 'guest-workspace',
-    board_id: boardId,
-    created_by: 'guest-user',
-  };
-  
-  sessionCards.push(newCard);
-  saveCards(sessionCards); // Persist to localStorage
-  return newCard;
 }
 
 export async function createCardInBoard(boardId: string, title: string): Promise<CardRow> {
-  return createCardInList(`${boardId}-list-1`, title);
+  // Find or create a default list in the board
+  const lists = await _getListsByBoard(boardId);
+  let targetListId = lists && lists.length > 0 ? lists[0].id : undefined;
+  if (!targetListId) {
+    const newList = await createListInDb(boardId, 'Untitled');
+    targetListId = newList.id;
+  }
+  return createCardInList(targetListId!, title);
 }
 
 // Create a card representing an archived board

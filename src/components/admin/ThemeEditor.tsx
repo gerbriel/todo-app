@@ -58,6 +58,8 @@ const ThemeEditor: React.FC<ThemeEditorProps> = ({ isOpen, onClose }) => {
   const [themeName, setThemeName] = useState('')
   const [themeDescription, setThemeDescription] = useState('')
   const [previewMode, setPreviewMode] = useState(true) // Enable preview by default
+    const [siteName, setSiteName] = useState('')
+    const [siteLogo, setSiteLogo] = useState('')
   const [originalTheme, setOriginalTheme] = useState<CreateThemeData | null>(null) // Store original for restore
 
   const queryClient = useQueryClient()
@@ -99,6 +101,8 @@ const ThemeEditor: React.FC<ThemeEditorProps> = ({ isOpen, onClose }) => {
       setOriginalTheme(themeData) // Save original for restore
       setThemeName(currentTheme.name)
       setThemeDescription(currentTheme.description || '')
+      setSiteName(currentTheme.siteName || '')
+      setSiteLogo(currentTheme.siteLogo || '')
     } else if (!currentTheme && !editingTheme) {
       // Use default theme as base
       const defaultData = {
@@ -114,6 +118,8 @@ const ThemeEditor: React.FC<ThemeEditorProps> = ({ isOpen, onClose }) => {
       setOriginalTheme(defaultData)
       setThemeName('New Theme')
       setThemeDescription('Custom theme')
+      setSiteName('My Site')
+      setSiteLogo('')
     }
   }, [currentTheme, editingTheme])
 
@@ -125,6 +131,19 @@ const ThemeEditor: React.FC<ThemeEditorProps> = ({ isOpen, onClose }) => {
       Object.entries(editingTheme.colors).forEach(([key, value]) => {
         root.style.setProperty(`--color-${key}`, value)
       })
+      // New background colors
+      if (editingTheme.colors.siteBackground) {
+        root.style.setProperty('--site-background', editingTheme.colors.siteBackground)
+      }
+      if (editingTheme.colors.boardBackground) {
+        root.style.setProperty('--board-background', editingTheme.colors.boardBackground)
+      }
+      if (editingTheme.colors.sidebarBackground) {
+        root.style.setProperty('--sidebar-background', editingTheme.colors.sidebarBackground)
+      }
+      if (editingTheme.colors.navbarBackground) {
+        root.style.setProperty('--navbar-background', editingTheme.colors.navbarBackground)
+      }
     }
   }, [editingTheme, previewMode, isOpen])
 
@@ -154,6 +173,19 @@ const ThemeEditor: React.FC<ThemeEditorProps> = ({ isOpen, onClose }) => {
       // Instant live preview
       if (previewMode) {
         document.documentElement.style.setProperty(`--color-${colorKey}`, value)
+        // Also update new background colors
+        if (colorKey === 'siteBackground') {
+          document.documentElement.style.setProperty('--site-background', value)
+        }
+        if (colorKey === 'boardBackground') {
+          document.documentElement.style.setProperty('--board-background', value)
+        }
+        if (colorKey === 'sidebarBackground') {
+          document.documentElement.style.setProperty('--sidebar-background', value)
+        }
+        if (colorKey === 'navbarBackground') {
+          document.documentElement.style.setProperty('--navbar-background', value)
+        }
       }
     }
   }
@@ -231,8 +263,17 @@ const ThemeEditor: React.FC<ThemeEditorProps> = ({ isOpen, onClose }) => {
   }
 
   if (!isOpen || !editingTheme) return null
-
+  // Add new background color pickers
   const colorSections = [
+    {
+      title: 'Site & Layout',
+      colors: [
+        { key: 'siteBackground', label: 'Site Background', description: 'Background color for the whole site' },
+        { key: 'boardBackground', label: 'Board Background', description: 'Background color for boards' },
+        { key: 'sidebarBackground', label: 'Sidebar Background', description: 'Background color for sidebar' },
+        { key: 'navbarBackground', label: 'Navbar Background', description: 'Background color for top navigation' }
+      ]
+    },
     {
       title: 'Base Colors',
       colors: [
@@ -337,8 +378,31 @@ const ThemeEditor: React.FC<ThemeEditorProps> = ({ isOpen, onClose }) => {
             </div>
           </div>
 
-          {/* Theme Name and Description */}
-          <div className="grid grid-cols-2 gap-4">
+          {/* Site Logo, Name, Theme Name, Description */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Site Name</label>
+              <input
+                type="text"
+                value={siteName}
+                onChange={(e) => setSiteName(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter site name"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Site Logo URL</label>
+              <input
+                type="text"
+                value={siteLogo}
+                onChange={(e) => setSiteLogo(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Paste logo image URL"
+              />
+              {siteLogo && (
+                <img src={siteLogo} alt="Site Logo Preview" className="mt-2 h-10 w-auto rounded shadow" />
+              )}
+            </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Theme Name</label>
               <input

@@ -1,172 +1,118 @@
 import type { ListRow } from '@/types/dto';
 
 // Default lists for new users
-const DEFAULT_LISTS: ListRow[] = [
-  {
-    id: 'demo-list-1',
-    board_id: 'demo-board-1',
-    name: 'To Do',
-    position: 1000,
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: 'demo-list-2',
-    board_id: 'demo-board-1',
-    name: 'In Progress',
-    position: 2000,
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: 'demo-list-3',
-    board_id: 'demo-board-1',
-    name: 'Done',
-    position: 3000,
-    created_at: new Date().toISOString(),
-  },
-  // Add lists for board-1 (mock data board)
-  {
-    id: 'list-1',
-    board_id: 'board-1',
-    name: 'To Do',
-    position: 1000,
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: 'list-2',
-    board_id: 'board-1',
-    name: 'In Progress',
-    position: 2000,
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: 'list-3',
-    board_id: 'board-1',
-    name: 'Done',
-    position: 3000,
-    created_at: new Date().toISOString(),
-  },
-  // Archive board lists
-  {
-    id: 'archive-list-1',
-    board_id: 'archive-board',
-    name: 'Archived Cards',
-    position: 1000,
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: 'archive-list-2',
-    board_id: 'archive-board',
-    name: 'Archived Lists',
-    position: 2000,
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: 'archive-list-3',
-    board_id: 'archive-board',
-    name: 'Archived Boards',
-    position: 3000,
-    created_at: new Date().toISOString(),
-  },
-];
 
-// Persistent storage functions
-const STORAGE_KEY = 'todo-app-lists';
 
-function loadLists(): ListRow[] {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      return JSON.parse(saved);
-    }
-  } catch (error) {
-    console.warn('Failed to load lists from localStorage:', error);
-  }
-  return [...DEFAULT_LISTS];
-}
+// (Optional) Demo/offline mode helpers below. Not used in Supabase mode.
+// const STORAGE_KEY = 'todo-app-lists';
+// function loadLists(): ListRow[] { ... }
+// function saveLists(lists: ListRow[]): void { ... }
+// let demoLists: ListRow[] = loadLists();
 
-function saveLists(lists: ListRow[]): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(lists));
-  } catch (error) {
-    console.warn('Failed to save lists to localStorage:', error);
-  }
-}
 
-// Initialize with persisted data
-let demoLists: ListRow[] = loadLists();
+import { supabase } from '@/app/supabaseClient';
 
 export async function getListsByBoard(boardId: string): Promise<ListRow[]> {
-  // Always use mock mode for now to avoid database errors
-  const filteredLists = demoLists.filter(list => list.board_id === boardId);
-  return filteredLists;
+  // Fetch lists for a board from Supabase
+  const { data, error } = await supabase
+    .from('lists')
+    .select('*')
+    .eq('board_id', boardId)
+    .order('position', { ascending: true });
+  if (error) {
+    console.error('Error fetching lists:', error);
+    return [];
+  }
+  return data || [];
 }
 
 export async function createList(boardId: string, name: string): Promise<ListRow> {
-  // Always use mock mode for now to avoid database errors
-  const position = Math.max(...demoLists.map(l => l.position), 0) + 1000;
-  const newList: ListRow = {
-    id: `list-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
-    board_id: boardId,
-    name,
-    position,
-    created_at: new Date().toISOString(),
-  };
-  demoLists.push(newList);
-  saveLists(demoLists); // Persist to localStorage
-  return newList;
+  // Get the highest position for the board
+  const { data: existingLists } = await supabase
+    .from('lists')
+    .select('position')
+    .eq('board_id', boardId)
+    .order('position', { ascending: false })
+    .limit(1);
+
+  const nextPosition = existingLists && existingLists.length > 0
+    ? (existingLists[0].position || 0) + 1000
+    : 1000;
+
+  const { data, error } = await supabase
+    .from('lists')
+    .insert({
+      board_id: boardId,
+      name,
+      position: nextPosition,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error creating list:', error);
+    throw error;
+  }
+  return data;
 }
 
 export async function moveListToBoard(listId: string, targetBoardId: string): Promise<void> {
-  // Always use mock mode for now
-  const listIndex = demoLists.findIndex(list => list.id === listId);
-  if (listIndex >= 0) {
-    demoLists[listIndex].board_id = targetBoardId;
-    saveLists(demoLists); // Persist to localStorage
+  // Update the board_id of the list in Supabase
+  const { error } = await supabase
+    .from('lists')
+    .update({ board_id: targetBoardId, updated_at: new Date().toISOString() })
+    .eq('id', listId);
+  if (error) {
+    console.error('Error moving list to board:', error);
+    throw error;
   }
 }
 
 export async function updateListPosition(listId: string, position: number): Promise<void> {
-  // Use mock data - find and update list position
-  const listIndex = demoLists.findIndex(list => list.id === listId);
-  if (listIndex >= 0) {
-    demoLists[listIndex].position = position;
-    saveLists(demoLists); // Persist to localStorage
+  // Update the position of the list in Supabase
+  const { error } = await supabase
+    .from('lists')
+    .update({ position, updated_at: new Date().toISOString() })
+    .eq('id', listId);
+  if (error) {
+    console.error('Error updating list position:', error);
+    throw error;
   }
 }
 
 export async function deleteList(listId: string): Promise<void> {
-  // Only allow deletion if list is in archive board
-  const listIndex = demoLists.findIndex(list => list.id === listId);
-  if (listIndex >= 0) {
-    const list = demoLists[listIndex];
-    if (list.board_id === 'archive-board') {
-      demoLists.splice(listIndex, 1);
-      saveLists(demoLists); // Persist to localStorage
-    } else {
-      throw new Error('Lists must be archived before they can be deleted');
-    }
+  // Only allow deletion if list is in archive board (enforced at UI/business logic layer)
+  const { error } = await supabase
+    .from('lists')
+    .delete()
+    .eq('id', listId);
+  if (error) {
+    console.error('Error deleting list:', error);
+    throw error;
   }
 }
 
 export async function renameList(listId: string, name: string): Promise<void> {
-  // Use mock data - find and update list name
-  const listIndex = demoLists.findIndex(list => list.id === listId);
-  if (listIndex >= 0) {
-    demoLists[listIndex].name = name;
-    saveLists(demoLists); // Persist to localStorage
+  // Update the name of the list in Supabase
+  const { error } = await supabase
+    .from('lists')
+    .update({ name, updated_at: new Date().toISOString() })
+    .eq('id', listId);
+  if (error) {
+    console.error('Error renaming list:', error);
+    throw error;
   }
 }
 
 export async function archiveList(listId: string): Promise<void> {
-  // Move list to archive board
-  const listIndex = demoLists.findIndex(list => list.id === listId);
-  if (listIndex >= 0) {
-    demoLists[listIndex] = {
-      ...demoLists[listIndex],
-      board_id: 'archive-board',
-      position: Date.now(),
-    };
-    saveLists(demoLists); // Persist to localStorage
+  // Move list to archive board in Supabase
+  const { error } = await supabase
+    .from('lists')
+    .update({ board_id: 'archive-board', position: Date.now(), updated_at: new Date().toISOString() })
+    .eq('id', listId);
+  if (error) {
+    console.error('Error archiving list:', error);
+    throw error;
   }
 }
 
@@ -177,6 +123,5 @@ export const listsApi = {
   moveListToBoard,
   updateListPosition,
   deleteList,
-  renameList,
   archiveList
 };
