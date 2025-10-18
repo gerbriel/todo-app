@@ -39,12 +39,22 @@ export async function createList(boardId: string, name: string): Promise<ListRow
     ? (existingLists[0].position || 0) + 1000
     : 1000;
 
+  // Ensure we set the owner of the list so RLS policies that check auth.uid() pass
+  const { data: authData } = await supabase.auth.getUser();
+  const user = authData?.user || null;
+  if (!user) {
+    const err = new Error('User not authenticated - cannot create list');
+    console.error(err);
+    throw err;
+  }
+
   const { data, error } = await supabase
     .from('lists')
     .insert({
       board_id: boardId,
       name,
       position: nextPosition,
+      created_by: user.id,
     })
     .select()
     .single();
