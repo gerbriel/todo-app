@@ -120,6 +120,15 @@ export const DEFAULT_PERMISSIONS: Permission[] = [
   }
 ];
 
+// Backwards-compatible alias used in some pages
+export const userApi = {
+  // small subset of functions (pages expect some of these)
+  async getUser(id: string) {
+    const { data } = await supabase.from('profiles').select('*').eq('id', id).single();
+    return data;
+  }
+};
+
 // Role-based permissions
 export const ROLE_PERMISSIONS = {
   admin: [

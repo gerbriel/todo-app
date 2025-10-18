@@ -227,3 +227,17 @@ export async function getBoardsByUser(userId: string): Promise<BoardRow[]> {
   // Get boards where the user is a member or owner
   return getBoards(userId);
 }
+
+// Backwards-compatible API object
+export const boardsApi = {
+  getBoards,
+  getArchivedBoards,
+  getBoard,
+  createBoard,
+  deleteBoard,
+  archiveBoard,
+  updateBoardName,
+  updateBoardPosition,
+  getListsByBoard,
+  getBoardsByUser
+};
