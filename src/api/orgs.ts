@@ -29,6 +29,17 @@ export async function createOrganization(name: string, slug?: string) {
   return data as string; // uuid
 }
 
+export async function updateOrganization(orgId: string, updates: { name?: string; slug?: string | null }) {
+  const { data, error } = await supabase
+    .from('organizations')
+    .update(updates)
+    .eq('id', orgId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data as OrgRow;
+}
+
 export async function createBoardWithAdmin(name: string, orgId: string) {
   const { data, error } = await supabase.rpc('create_board_with_admin', { p_name: name, p_org: orgId });
   if (error) throw error;

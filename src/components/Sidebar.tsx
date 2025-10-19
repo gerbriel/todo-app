@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { Link, useParams, useLocation } from 'react-router-dom';
 import { 
@@ -12,7 +12,7 @@ import {
   Shield
 } from 'lucide-react';
 import { getBoards, createBoard, deleteBoard, updateBoardName, updateBoardPosition } from '@/api/boards';
-import { getOrgsForUser, createOrganization } from '@/api/orgs';
+import { getOrgsForUser, createOrganization, updateOrganization } from '@/api/orgs';
 import { useOrg } from '@/contexts/OrgContext';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -53,11 +53,14 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
     })
   );
 
-  const { currentOrg } = useOrg();
+  const { currentOrg, setCurrentOrg } = useOrg();
   const [orgs, setOrgs] = useState<Array<{ id: string; name: string }>>([]);
   const [showOrgDropdown, setShowOrgDropdown] = useState(false);
   const [isEditingOrg, setIsEditingOrg] = useState(false);
   const [editOrgName, setEditOrgName] = useState('');
+  const [showCreateOrgModal, setShowCreateOrgModal] = useState(false);
+  const [createOrgName, setCreateOrgName] = useState('');
+  const [orgActionLoading, setOrgActionLoading] = useState(false);
   const { data: boards = [], isLoading } = useQuery({
     queryKey: ['boards', currentOrg?.id || user?.id],
     queryFn: () => user?.id ? getBoards(currentOrg?.id || user.id) : Promise.resolve([]),
@@ -253,7 +256,10 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
           <div className="flex-1">
             {!isEditingOrg ? (
               <button
-                onClick={() => setIsEditingOrg(true)}
+                onClick={() => {
+                  setEditOrgName(currentOrg?.name || '');
+                  setIsEditingOrg(true);
+                }}
                 className="text-xs text-gray-600 dark:text-gray-300 font-semibold truncate text-left w-full"
                 title="Edit organization name"
               >
@@ -264,15 +270,19 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
                 value={editOrgName}
                 onChange={(e) => setEditOrgName(e.target.value)}
                 onBlur={async () => {
-                  // Save change via profiles or org update - optimistic local update
-                  if (editOrgName.trim() && currentOrg) {
+                  if (!currentOrg) { setIsEditingOrg(false); return; }
+                  const trimmed = editOrgName.trim();
+                  if (trimmed && trimmed !== currentOrg.name) {
+                    setOrgActionLoading(true);
                     try {
-                      // Update org name locally in context by calling setCurrentOrg
-                      await (async () => {
-                        /* Using OrgContext.setCurrentOrg directly would be ideal; instead, update via profiles is handled elsewhere. */
-                      })();
-                    } catch (e) {
-                      console.error('Failed to update org name', e);
+                      const updated = await updateOrganization(currentOrg.id, { name: trimmed });
+                      // update context
+                      await setCurrentOrg({ id: updated.id, name: updated.name, slug: updated.slug ?? undefined });
+                    } catch (err) {
+                      console.error('Failed to update organization name', err);
+                      alert('Failed to update organization name');
+                    } finally {
+                      setOrgActionLoading(false);
                     }
                   }
                   setIsEditingOrg(false);
@@ -280,11 +290,12 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
                 onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); if (e.key === 'Escape') { setIsEditingOrg(false); } }}
                 className="w-full text-xs px-2 py-1 rounded border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 autoFocus
+                disabled={orgActionLoading}
               />
             )}
           </div>
 
-          <div className="ml-2">
+            <div className="ml-2">
             <button
               onClick={() => setShowOrgDropdown(!showOrgDropdown)}
               className="text-gray-400 hover:text-gray-600 p-1 rounded"
@@ -294,7 +305,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
             </button>
 
             {showOrgDropdown && (
-              <div className="absolute left-0 top-full mt-2 w-56 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded shadow-lg z-40">
+              <div className="absolute left-0 top-full mt-2 w-72 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded shadow-lg z-40">
                 <div className="p-2">
                   <div className="text-xs font-semibold text-gray-500 mb-2">Organizations</div>
                   {orgs.length === 0 && (
@@ -306,12 +317,10 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
                       onClick={async () => {
                         setShowOrgDropdown(false);
                         try {
-                          await (async () => {
-                            // Set current org in OrgContext via DOM: use window to find provider? We'll call setCurrentOrg indirectly by reloading the page with persisted profile updated by OrgContext elsewhere.
-                          })();
+                          await setCurrentOrg({ id: org.id, name: org.name, slug: undefined });
                         } catch (e) { console.error(e); }
                       }}
-                      className="w-full text-left px-2 py-1 rounded hover:bg-gray-50 dark:hover:bg-gray-700 text-sm"
+                      className={`w-full text-left px-2 py-1 rounded hover:bg-gray-50 dark:hover:bg-gray-700 text-sm ${currentOrg?.id === org.id ? 'bg-blue-50 dark:bg-blue-900/30' : ''}`}
                     >
                       {org.name}
                     </button>
@@ -319,19 +328,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
 
                   <div className="mt-2 border-t border-gray-100 dark:border-gray-700 pt-2">
                     <button
-                      onClick={async () => {
-                        const name = prompt('Enter new organization name');
-                        if (!name) return;
-                        try {
-                          const id = await createOrganization(name);
-                          // refresh org list
-                          const list = await getOrgsForUser(user!.id);
-                          setOrgs(list || []);
-                        } catch (e) {
-                          console.error('Failed to create org', e);
-                          alert('Failed to create organization');
-                        }
-                      }}
+                      onClick={() => { setShowOrgDropdown(false); setShowCreateOrgModal(true); }}
                       className="w-full text-left px-2 py-2 rounded bg-blue-600 text-white text-sm hover:bg-blue-700"
                     >
                       + Create organization
@@ -343,6 +340,52 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
           </div>
         </div>
       </div>
+
+      {/* Create Org Modal */}
+      {showCreateOrgModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-96">
+            <h3 className="text-lg font-semibold mb-3 text-gray-900 dark:text-white">Create organization</h3>
+            <input
+              type="text"
+              value={createOrgName}
+              onChange={(e) => setCreateOrgName(e.target.value)}
+              placeholder="Organization name"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded mb-4 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => { setShowCreateOrgModal(false); setCreateOrgName(''); }}
+                className="px-3 py-2 rounded bg-gray-200 dark:bg-gray-700"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  if (!createOrgName.trim() || !user?.id) return;
+                  setOrgActionLoading(true);
+                  try {
+                    const createdId = await createOrganization(createOrgName.trim());
+                    const list = await getOrgsForUser(user.id);
+                    setOrgs(list || []);
+                    const created = list.find(o => o.id === createdId) || list[0];
+                    if (created) await setCurrentOrg({ id: created.id, name: created.name, slug: undefined });
+                    setShowCreateOrgModal(false);
+                    setCreateOrgName('');
+                  } catch (err) {
+                    console.error('Failed to create org', err);
+                    alert('Failed to create organization');
+                  } finally { setOrgActionLoading(false); }
+                }}
+                className="px-3 py-2 rounded bg-blue-600 text-white"
+                disabled={orgActionLoading}
+              >
+                {orgActionLoading ? 'Creating...' : 'Create'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Navigation Links */}
       <div className="p-4 space-y-2 border-b border-gray-200 dark:border-gray-700">
