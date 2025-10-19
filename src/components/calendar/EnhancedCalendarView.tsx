@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { getBoards } from '@/api/boards';
 import { getCardsByBoard } from '@/api/cards';
 import { useAuth } from '@/contexts/AuthContext';
+import { useOrg } from '@/contexts/OrgContext';
 import type { CardRow } from '@/types/dto';
 
 interface CalendarCard extends CardRow {
@@ -41,14 +42,15 @@ const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 export default function EnhancedCalendarView() {
   const { user } = useAuth();
+  const { currentOrg } = useOrg();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedBoardIds, setSelectedBoardIds] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
 
   // Fetch boards
   const boardsQuery = useQuery({
-    queryKey: ['boards', user?.id],
-    queryFn: () => user?.id ? getBoards(user.id) : Promise.resolve([]),
+    queryKey: ['boards', currentOrg?.id || user?.id],
+    queryFn: () => user?.id ? getBoards(currentOrg?.id || user.id) : Promise.resolve([]),
     enabled: !!user?.id,
   });
 

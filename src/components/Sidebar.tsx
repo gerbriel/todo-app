@@ -12,6 +12,7 @@ import {
   Shield
 } from 'lucide-react';
 import { getBoards, createBoard, deleteBoard, updateBoardName, updateBoardPosition } from '@/api/boards';
+import { useOrg } from '@/contexts/OrgContext';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   DndContext,
@@ -51,9 +52,10 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
     })
   );
 
+  const { currentOrg } = useOrg();
   const { data: boards = [], isLoading } = useQuery({
-    queryKey: ['boards', user?.id],
-    queryFn: () => user?.id ? getBoards(user.id) : Promise.resolve([]),
+    queryKey: ['boards', currentOrg?.id || user?.id],
+    queryFn: () => user?.id ? getBoards(currentOrg?.id || user.id) : Promise.resolve([]),
     enabled: !!user?.id,
   });
 

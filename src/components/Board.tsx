@@ -6,6 +6,7 @@ import { Plus } from 'lucide-react';
 import { getListsByBoard, createList, renameList, updateListPosition, deleteList, moveListToBoard } from '@/api/lists';
 import { getCardsByBoard, updateCardPosition, createCardInList, moveCardToBoard } from '@/api/cards';
 import { getBoards } from '@/api/boards';
+import { useOrg } from '@/contexts/OrgContext';
 import { useAuth } from '@/contexts/AuthContext';
 import SortableList from './SortableList';
 import { 
@@ -39,9 +40,10 @@ export default function Board() {
   });
 
   // Get all boards for move functionality
+  const { currentOrg } = useOrg();
   const boardsQuery = useQuery({
-    queryKey: ['boards', user?.id],
-    queryFn: () => user?.id ? getBoards(user.id) : Promise.resolve([]),
+    queryKey: ['boards', currentOrg?.id || user?.id],
+    queryFn: () => user?.id ? getBoards(currentOrg?.id || user.id) : Promise.resolve([]),
     enabled: !!user?.id,
   });
 

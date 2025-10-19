@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useOrg } from '@/contexts/OrgContext';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Move, Trash2, Archive, Edit, ChevronDown } from 'lucide-react';
 import { getBoards } from '@/api/boards';
@@ -16,9 +17,9 @@ export default function CardContextMenu({ card, onClose, isOpen, onEdit }: CardC
   const [showMoveMenu, setShowMoveMenu] = useState(false);
   const queryClient = useQueryClient();
   
-  // For now, use a hardcoded workspace ID - in a real app, get this from user context
-  const workspaceId = card.workspace_id; 
-  
+  const { currentOrg } = useOrg();
+  const workspaceId = currentOrg?.id || card.workspace_id;
+
   const boardsQuery = useQuery({
     queryKey: ['boards', workspaceId],
     queryFn: () => getBoards(workspaceId),

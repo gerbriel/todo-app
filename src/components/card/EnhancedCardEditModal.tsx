@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { X, Edit2, Calendar, User, Tag, FileText, Check, Move, Paperclip, MapPin, Users, Archive, Copy, Sparkles, Clock, Upload, Download, Eye } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getBoards } from '@/api/boards';
+import { useOrg } from '@/contexts/OrgContext';
 import { 
   moveCardToBoard, 
   updateCard,
@@ -46,12 +47,23 @@ interface CardEditModalProps {
 }
 
 export default function CardEditModal({ card, isOpen, onClose, onSave }: CardEditModalProps) {
+  // ensure date inputs are in yyyy-MM-dd format for <input type="date">
+  const formatForDateInput = (iso?: string | null) => {
+    if (!iso) return '';
+    try {
+      return new Date(iso).toISOString().split('T')[0];
+    } catch (e) {
+      return '';
+    }
+  };
+
   const [formData, setFormData] = useState<any>({
     ...card,
     title: card.title || '',
     description: card.description || '',
-    date_start: card.date_start || '',
-    date_end: card.date_end || ''
+    // ensure date inputs conform to yyyy-MM-dd
+    date_start: formatForDateInput(card.date_start),
+    date_end: formatForDateInput(card.date_end),
   });
 
   // Initialize selected labels from card data
@@ -115,6 +127,15 @@ export default function CardEditModal({ card, isOpen, onClose, onSave }: CardEdi
     mutationFn: (updates: Partial<CardRow>) => updateCard(card.id, updates),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cards', card.board_id] });
+    },
+    onError: (error: any) => {
+      const msg = (error?.message || '').toString();
+      if (msg.includes("Could not find the 'location_address'")) {
+        // Helpful guidance for the developer/user
+        alert('Database schema mismatch: location columns are missing in the Supabase schema cache. Run your migration and then refresh Supabase API schema (Project → Settings → Database → Refresh schema).');
+      } else {
+        console.error('Error updating card:', error);
+      }
     }
   });
 
@@ -155,11 +176,13 @@ export default function CardEditModal({ card, isOpen, onClose, onSave }: CardEdi
     }
   });
 
+  const { currentOrg } = useOrg();
   // Get available boards for moving
+  const workspaceForBoards = currentOrg?.id || card.workspace_id;
   const boardsQuery = useQuery({
-    queryKey: ['boards', card.workspace_id],
-    queryFn: () => getBoards(card.workspace_id),
-    enabled: isOpen,
+    queryKey: ['boards', workspaceForBoards],
+    queryFn: () => workspaceForBoards ? getBoards(workspaceForBoards) : Promise.resolve([]),
+    enabled: isOpen && !!workspaceForBoards,
   });
 
   const moveCardMutation = useMutation({
@@ -215,10 +238,39 @@ export default function CardEditModal({ card, isOpen, onClose, onSave }: CardEdi
     }
   }, [showLocationModal, card.location_address, card.location_lat, card.location_lng]);
 
+  // Keep the dates modal in-sync with the main form when opened
+  useEffect(() => {
+    if (showDatesModal) {
+      setDatesForm({
+        start_date: formData.date_start || '',
+        end_date: formData.date_end || ''
+      });
+    }
+  }, [showDatesModal, formData.date_start, formData.date_end]);
+
   const handleSave = async () => {
     try {
       setIsSaving(true);
-      await onSave(formData);
+      // Normalize date inputs (from yyyy-MM-dd) to ISO strings for the DB
+      const normalizeToISO = (d: any) => {
+        if (!d) return null;
+        try {
+          // If already ISO-ish, Date will keep it; if yyyy-MM-dd, this creates a correct Date
+          const dt = new Date(d);
+          if (isNaN(dt.getTime())) return null;
+          return dt.toISOString();
+        } catch (e) {
+          return null;
+        }
+      };
+
+      const payload: Partial<any> = {
+        ...formData,
+        date_start: normalizeToISO(formData.date_start),
+        date_end: normalizeToISO(formData.date_end)
+      };
+
+      await onSave(payload);
       onClose(); // Only close after successful save
     } catch (error) {
       console.error('Failed to save card:', error);
@@ -360,7 +412,10 @@ export default function CardEditModal({ card, isOpen, onClose, onSave }: CardEdi
 
         <div className="flex">
           {/* Main Content */}
-          <div className="flex-1 p-6">
+          <div
+            className="flex-1 p-6 overflow-y-auto"
+            style={{ maxHeight: 'calc(90vh - 160px)' }}
+          >
             {activeTab === 'details' ? (
               <div className="space-y-6">
                 {/* Title */}

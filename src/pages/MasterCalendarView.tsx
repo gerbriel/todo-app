@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { getBoards } from '@/api/boards';
 import { getCardsByBoard } from '@/api/cards';
 import { useAuth } from '@/contexts/AuthContext';
+import { useOrg } from '@/contexts/OrgContext';
 import type { CardRow } from '@/types/dto';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import '@/styles/calendar.css';
@@ -35,7 +36,8 @@ interface CalendarEvent {
 
 export default function MasterCalendarView() {
   const { user } = useAuth();
-  const userId = user?.id || 'guest-user';
+  const { currentOrg } = useOrg();
+  const userId = currentOrg?.id || user?.id || 'guest-user';
 
   // Fetch all boards
   const { data: boards = [] } = useQuery({

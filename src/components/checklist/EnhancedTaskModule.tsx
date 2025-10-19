@@ -122,7 +122,12 @@ const TaskItemComponent: React.FC<TaskItemComponentProps> = ({
   };
 
   const handleDateChange = (field: 'start_date' | 'due_date', value: string) => {
-    onUpdate({ [field]: value || null });
+    const toISO = (v: string | null) => {
+      if (!v) return null;
+      const dt = new Date(v);
+      return isNaN(dt.getTime()) ? null : dt.toISOString();
+    };
+    onUpdate({ [field]: toISO(value || null) });
   };
 
   const handleLabelToggle = (labelId: string) => {

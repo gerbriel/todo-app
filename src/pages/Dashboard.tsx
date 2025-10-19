@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Calendar, Archive, Users } from 'lucide-react'
 import { boardsApi } from '../api/boards'
+import { useOrg } from '@/contexts/OrgContext';
 import { userApi, type UserProfile } from '../api/users'
 import { Button } from '../components/ui/Button'
 import { Modal } from '../components/ui/Modal'
@@ -18,8 +19,9 @@ export function Dashboard() {
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null)
   const [showUserManagement, setShowUserManagement] = useState(false)
 
-  // Use the real workspace UUID
-  const workspaceId = 'afa0b21a-9585-4e62-9908-9c36ed9b0d25'
+  const { currentOrg } = useOrg();
+  // Use the real workspace UUID or selected org
+  const workspaceId = currentOrg?.id || 'afa0b21a-9585-4e62-9908-9c36ed9b0d25'
 
   const { data: boards = [], isLoading, refetch } = useQuery({
     queryKey: ['boards', workspaceId],

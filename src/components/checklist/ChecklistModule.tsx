@@ -428,7 +428,13 @@ export default function ChecklistModule({
                             type="date"
                             value={item.start_date ? item.start_date.split('T')[0] : ''}
                             onChange={(e) => {
-                              onItemStartDateSet(item.id, e.target.value || null);
+                              const v = e.target.value || null;
+                              const toISO = (d: string | null) => {
+                                if (!d) return null;
+                                const dt = new Date(d);
+                                return isNaN(dt.getTime()) ? null : dt.toISOString();
+                              };
+                              onItemStartDateSet(item.id, toISO(v));
                             }}
                             className="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-500 rounded bg-white dark:bg-gray-600 text-gray-900 dark:text-white"
                           />
@@ -451,7 +457,13 @@ export default function ChecklistModule({
                             type="date"
                             value={item.due_date ? item.due_date.split('T')[0] : ''}
                             onChange={(e) => {
-                              onItemDueDateSet(item.id, e.target.value || null);
+                              const v = e.target.value || null;
+                              const toISO = (d: string | null) => {
+                                if (!d) return null;
+                                const dt = new Date(d);
+                                return isNaN(dt.getTime()) ? null : dt.toISOString();
+                              };
+                              onItemDueDateSet(item.id, toISO(v));
                             }}
                             className="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-500 rounded bg-white dark:bg-gray-600 text-gray-900 dark:text-white"
                           />
@@ -473,7 +485,12 @@ export default function ChecklistModule({
                         <button
                           onClick={() => {
                             const today = new Date().toISOString().split('T')[0];
-                            onItemDueDateSet(item.id, today);
+                            const toISO = (d: string | null) => {
+                              if (!d) return null;
+                              const dt = new Date(d);
+                              return isNaN(dt.getTime()) ? null : dt.toISOString();
+                            };
+                            onItemDueDateSet(item.id, toISO(today));
                           }}
                           className="px-2 py-1 text-xs bg-blue-100 text-blue-700 hover:bg-blue-200 rounded"
                         >
@@ -483,7 +500,13 @@ export default function ChecklistModule({
                           onClick={() => {
                             const tomorrow = new Date();
                             tomorrow.setDate(tomorrow.getDate() + 1);
-                            onItemDueDateSet(item.id, tomorrow.toISOString().split('T')[0]);
+                            const d = tomorrow.toISOString().split('T')[0];
+                            const toISO = (dd: string | null) => {
+                              if (!dd) return null;
+                              const dt = new Date(dd);
+                              return isNaN(dt.getTime()) ? null : dt.toISOString();
+                            };
+                            onItemDueDateSet(item.id, toISO(d));
                           }}
                           className="px-2 py-1 text-xs bg-green-100 text-green-700 hover:bg-green-200 rounded"
                         >
@@ -493,7 +516,13 @@ export default function ChecklistModule({
                           onClick={() => {
                             const nextWeek = new Date();
                             nextWeek.setDate(nextWeek.getDate() + 7);
-                            onItemDueDateSet(item.id, nextWeek.toISOString().split('T')[0]);
+                            const d = nextWeek.toISOString().split('T')[0];
+                            const toISO = (dd: string | null) => {
+                              if (!dd) return null;
+                              const dt = new Date(dd);
+                              return isNaN(dt.getTime()) ? null : dt.toISOString();
+                            };
+                            onItemDueDateSet(item.id, toISO(d));
                           }}
                           className="px-2 py-1 text-xs bg-purple-100 text-purple-700 hover:bg-purple-200 rounded"
                         >

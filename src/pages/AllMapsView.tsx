@@ -3,15 +3,17 @@ import { useQuery } from '@tanstack/react-query';
 import { getBoards } from '@/api/boards';
 import { getCardsByBoard } from '@/api/cards';
 import { useAuth } from '@/contexts/AuthContext';
+import { useOrg } from '@/contexts/OrgContext';
 
 export default function AllMapsView() {
   const { user } = useAuth();
-  const workspaceId = user?.id || '2a8f10d6-4368-43db-ab1d-ab783ec6e935';
+  const { currentOrg } = useOrg();
+  const workspaceId = currentOrg?.id || user?.id || '2a8f10d6-4368-43db-ab1d-ab783ec6e935';
   const [enabledBoardIds, setEnabledBoardIds] = useState<string[]>([]);
 
   // Get all boards
   const { data: boards = [], isLoading: boardsLoading } = useQuery({
-    queryKey: ['boards', user?.id],
+    queryKey: ['boards', currentOrg?.id || user?.id],
     queryFn: () => getBoards(workspaceId),
     enabled: !!user?.id
   });

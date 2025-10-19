@@ -104,6 +104,9 @@ export function CardEditModal({
     if (title.trim()) {
       const cardData = {
         title: title.trim(),
+        // Convert date inputs (yyyy-MM-dd) to ISO strings or null
+        date_start: dateStart ? new Date(dateStart).toISOString() : undefined,
+        date_end: dateEnd ? new Date(dateEnd).toISOString() : undefined,
       }
       
       console.log('🟢 SIMPLE MODAL: Regular modal saving simple card data:', cardData)

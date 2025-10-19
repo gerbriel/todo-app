@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/app/supabaseClient';
+// ...existing imports
 import { getBoards, createBoard } from '@/api/boards';
 import orgsApi from '@/api/orgs';
+import { useOrg } from '@/contexts/OrgContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Palette } from 'lucide-react';
 
@@ -17,7 +18,7 @@ export default function Topbar() {
 
   const workspaceId = user?.id || '2a8f10d6-4368-43db-ab1d-ab783ec6e935';
   const [orgs, setOrgs] = useState<Array<{id: string; name: string; slug?: string}>>([]);
-  const [currentOrg, setCurrentOrg] = useState<{id: string; name: string; slug?: string} | null>(null);
+  const { currentOrg, setCurrentOrg } = useOrg();
   const { data: boards } = useQuery({
     queryKey: ['boards', currentOrg?.id || user?.id], 
     queryFn: () => getBoards(currentOrg?.id || workspaceId),
@@ -35,7 +36,9 @@ export default function Topbar() {
   useEffect(() => {
     if (orgsQuery.data) {
       setOrgs(orgsQuery.data as any[]);
+      // If OrgContext has no currentOrg, default to the first org the user is a member of
       if (!currentOrg && (orgsQuery.data as any[]).length > 0) {
+        // OrgProvider will persist the selection; setCurrentOrg is safe to call
         setCurrentOrg((orgsQuery.data as any[])[0]);
       }
     }
@@ -160,17 +163,9 @@ export default function Topbar() {
                         <button
                           key={org.id}
                             onClick={async () => {
-                              setCurrentOrg(org);
+                              // set global current org (OrgProvider handles persistence)
+                              await setCurrentOrg(org);
                               setShowBoardsMenu(false);
-                              // persist to profiles if available (best-effort)
-                              if (user?.id) {
-                                try {
-                                  await supabase.from('profiles').upsert({ id: user.id, current_org: org.id });
-                                } catch (e) {
-                                  // ignore failures; not all projects have profiles table
-                                  console.debug('Could not persist current_org to profiles', e);
-                                }
-                              }
                             }}
                           className={`w-full text-left px-3 py-1 text-sm ${currentOrg?.id === org.id ? 'font-semibold' : ''} text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded`}
                         >

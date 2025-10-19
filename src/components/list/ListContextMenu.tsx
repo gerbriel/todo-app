@@ -3,6 +3,7 @@ import { Move, Trash2, Archive, Edit } from 'lucide-react';
 import { getBoards } from '@/api/boards';
 import { moveListToBoard, deleteList } from '@/api/lists';
 import { useAuth } from '@/contexts/AuthContext';
+import { useOrg } from '@/contexts/OrgContext';
 import type { ListRow, BoardRow } from '@/types/dto';
 
 interface ListContextMenuProps {
@@ -15,9 +16,10 @@ export default function ListContextMenu({ list, onClose, isOpen }: ListContextMe
   const queryClient = useQueryClient();
   const { user } = useAuth();
   
+  const { currentOrg } = useOrg();
   const boardsQuery = useQuery({
-    queryKey: ['boards', user?.id],
-    queryFn: () => user?.id ? getBoards(user.id) : Promise.resolve([]),
+    queryKey: ['boards', currentOrg?.id || user?.id],
+    queryFn: () => user?.id ? getBoards(currentOrg?.id || user.id) : Promise.resolve([]),
     enabled: isOpen && !!user?.id,
   });
 

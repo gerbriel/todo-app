@@ -37,11 +37,17 @@ export function SimpleCardModal({ card, isOpen, onClose }: SimpleCardModalProps)
   });
 
   const handleSave = () => {
+    const toISO = (d: string) => {
+      if (!d) return undefined;
+      const dt = new Date(d);
+      return isNaN(dt.getTime()) ? undefined : dt.toISOString();
+    };
+
     updateCardMutation.mutate({
       title: title.trim(),
       description: description.trim() || null,
-      date_start: dateStart || null,
-      date_end: dateEnd || null,
+      date_start: toISO(dateStart),
+      date_end: toISO(dateEnd),
     });
   };
 

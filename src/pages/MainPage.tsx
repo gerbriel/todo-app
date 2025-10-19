@@ -1,14 +1,16 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { boardsApi } from '../api/boards'
+import { useOrg } from '@/contexts/OrgContext';
 import { Dashboard } from './Dashboard'
-import { CalendarView } from './CalendarView'
+import CalendarView from './CalendarView'
 
 export function MainPage() {
-  const [currentView, setCurrentView] = useState<'dashboard' | 'calendar' | 'archive'>('dashboard')
+  const [currentView] = useState<'dashboard' | 'calendar' | 'archive'>('dashboard')
 
-  // Use the real workspace UUID
-  const workspaceId = 'afa0b21a-9585-4e62-9908-9c36ed9b0d25'
+  const { currentOrg } = useOrg();
+  // Use the real workspace UUID or current org
+  const workspaceId = currentOrg?.id || 'afa0b21a-9585-4e62-9908-9c36ed9b0d25'
 
   const { data: boards = [] } = useQuery({
     queryKey: ['boards', workspaceId],
@@ -16,8 +18,8 @@ export function MainPage() {
   })
 
   // Get all cards for calendar view
-  const allCards = boards.flatMap(board => 
-    board.lists?.flatMap(list => list.cards || []) || []
+  const allCards = boards.flatMap((board: any) => 
+    (board.lists?.flatMap((list: any) => list.cards || []) || [])
   )
 
   const renderCurrentView = () => {

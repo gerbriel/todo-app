@@ -3,15 +3,17 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getBoards, createBoard } from '@/api/boards';
 import { useAuth } from '@/contexts/AuthContext';
+import { useOrg } from '@/contexts/OrgContext';
 
 export default function HomePage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const workspaceId = user?.id || '2a8f10d6-4368-43db-ab1d-ab783ec6e935'; // Default workspace
+  const { currentOrg } = useOrg();
+  const workspaceId = currentOrg?.id || user?.id || '2a8f10d6-4368-43db-ab1d-ab783ec6e935'; // Default workspace
   const { data: boards, isLoading, error } = useQuery({
-    queryKey: ['boards', user?.id], 
+    queryKey: ['boards', currentOrg?.id || user?.id], 
     queryFn: () => getBoards(workspaceId),
     enabled: !!user?.id
   });
