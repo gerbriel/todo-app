@@ -215,16 +215,28 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   }
 
   return (
-    <div className="w-80 bg-gray-100 dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
-      {/* Header */}
-      <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-        <h2 className="font-semibold text-gray-900 dark:text-white">Boards</h2>
-        <button
-          onClick={onToggle}
-          className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
-        >
-          <ChevronLeft className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-        </button>
+    <div className="w-64 bg-gray-100 dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
+      {/* Compact app title + org row */}
+      <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex flex-col items-start">
+        <div className="flex items-center justify-between w-full">
+          <h1 className="text-2xl font-bold tracking-wider uppercase text-gray-900 dark:text-white">TODO</h1>
+          <button
+            onClick={onToggle}
+            className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
+            aria-label="Collapse sidebar"
+          >
+            <ChevronLeft className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+          </button>
+        </div>
+
+        <div className="mt-2 w-full flex items-center justify-between">
+          <div className="text-xs text-gray-600 dark:text-gray-300 font-semibold truncate">
+            {(currentOrg?.name || 'Organization Workspace Name').toUpperCase()}
+          </div>
+          <div className="text-gray-400 ml-2">
+            <ChevronRight className="w-4 h-4" />
+          </div>
+        </div>
       </div>
 
       {/* Navigation Links */}
