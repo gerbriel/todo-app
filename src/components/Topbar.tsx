@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/app/supabaseClient';
 import { getBoards, createBoard } from '@/api/boards';
+import orgsApi from '@/api/orgs';
 import { useAuth } from '@/contexts/AuthContext';
 import { Palette } from 'lucide-react';
 
@@ -14,18 +16,45 @@ export default function Topbar() {
   const [showCreateMenu, setShowCreateMenu] = useState(false);
 
   const workspaceId = user?.id || '2a8f10d6-4368-43db-ab1d-ab783ec6e935';
+  const [orgs, setOrgs] = useState<Array<{id: string; name: string; slug?: string}>>([]);
+  const [currentOrg, setCurrentOrg] = useState<{id: string; name: string; slug?: string} | null>(null);
   const { data: boards } = useQuery({
-    queryKey: ['boards', user?.id], 
-    queryFn: () => getBoards(workspaceId),
+    queryKey: ['boards', currentOrg?.id || user?.id], 
+    queryFn: () => getBoards(currentOrg?.id || workspaceId),
     enabled: !!user?.id
   });
+
+  // fetch orgs for user
+  const orgsQuery = useQuery({
+    queryKey: ['orgs', user?.id],
+    queryFn: () => user?.id ? orgsApi.getOrgsForUser(user.id) : Promise.resolve([]),
+    enabled: !!user?.id
+  });
+
+  // keep local state in sync with query
+  useEffect(() => {
+    if (orgsQuery.data) {
+      setOrgs(orgsQuery.data as any[]);
+      if (!currentOrg && (orgsQuery.data as any[]).length > 0) {
+        setCurrentOrg((orgsQuery.data as any[])[0]);
+      }
+    }
+  }, [orgsQuery.data]);
 
   const handleCreateBoard = async () => {
     const name = prompt('Enter board name:');
     if (!name?.trim()) return;
 
     try {
-      const newBoard = await createBoard(workspaceId, name.trim());
+      // use currentOrg if available, otherwise fallback to workspaceId
+      const orgId = currentOrg?.id || null;
+      let newBoard: any;
+      if (orgId) {
+        const id = await orgsApi.createBoardWithAdmin(name.trim(), orgId);
+        newBoard = { id };
+      } else {
+        newBoard = await createBoard(workspaceId, name.trim());
+      }
       
       await queryClient.invalidateQueries({ queryKey: ['boards', user?.id] });
       navigate(`/b/${newBoard.id}/board`);
@@ -83,12 +112,29 @@ export default function Topbar() {
     <div className="h-16 bg-white dark:bg-gray-800 border-b dark:border-gray-700 flex items-center justify-between px-4">
       <div className="flex items-center space-x-4">
         <h1 
-          className="text-2xl font-bold text-gray-900 dark:text-white cursor-pointer" 
+          className="text-2xl font-bold text-gray-900 dark:text-white cursor-pointer flex items-center space-x-2" 
           onClick={() => navigate('/')}
         >
-          Todo
+          <span>Todo</span>
+          {/* show current org name next to app title */}
+          {currentOrg ? (
+            <div className="flex items-center ml-3">
+              <span className="text-lg font-semibold text-gray-700 dark:text-gray-300">{currentOrg.name}</span>
+              <button
+                onClick={() => setShowBoardsMenu(!showBoardsMenu)}
+                className="ml-2 p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                aria-label="Switch organization"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+            </div>
+          ) : (
+            <span className="ml-3 text-gray-500">Boards</span>
+          )}
         </h1>
-        
+
         {/* Boards dropdown */}
         <div className="relative">
           <button
@@ -105,6 +151,35 @@ export default function Topbar() {
             <div className="absolute top-full left-0 mt-1 w-64 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg shadow-lg z-50">
               <div className="p-2">
                 <div className="text-sm font-medium text-gray-900 dark:text-white mb-2">Your boards</div>
+                {/* Org switcher at top of menu */}
+                {orgs && orgs.length > 0 && (
+                  <div className="mb-2">
+                    <div className="text-xs text-gray-500 mb-1">Organizations</div>
+                    <div className="space-y-1">
+                      {orgs.map(org => (
+                        <button
+                          key={org.id}
+                            onClick={async () => {
+                              setCurrentOrg(org);
+                              setShowBoardsMenu(false);
+                              // persist to profiles if available (best-effort)
+                              if (user?.id) {
+                                try {
+                                  await supabase.from('profiles').upsert({ id: user.id, current_org: org.id });
+                                } catch (e) {
+                                  // ignore failures; not all projects have profiles table
+                                  console.debug('Could not persist current_org to profiles', e);
+                                }
+                              }
+                            }}
+                          className={`w-full text-left px-3 py-1 text-sm ${currentOrg?.id === org.id ? 'font-semibold' : ''} text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded`}
+                        >
+                          {org.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <div className="space-y-1">
                   {boards && boards.length > 0 ? (
                     boards.map((board: any) => (
